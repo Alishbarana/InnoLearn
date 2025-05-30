@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: 'com.google.gms.google-services'
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -73,11 +74,10 @@ def enableProguardInReleaseBuilds = false
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    ndkVersion rootProject.ext.ndkVersion
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk rootProject.ext.compileSdkVersion
+    ndkVersion = rootProject.ext.ndkVersion
+    compileSdk = rootProject.ext.compileSdkVersion
 
-    namespace "com.innolearn"
+    namespace = "com.innolearn"
     defaultConfig {
         applicationId "com.innolearn"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -110,10 +110,16 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation 'com.google.firebase:firebase-analytics:21.5.0'
+    implementation 'com.google.firebase:firebase-auth:22.3.0'
+    implementation 'com.google.firebase:firebase-firestore:25.0.0'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
     }
+   
 }
+ 
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1036797103905",
+    "project_id": "ar-authentication-c0989",
+    "storage_bucket": "ar-authentication-c0989.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1036797103905:android:ef57515e55397e738a3860",
+        "android_client_info": {
+          "package_name": "com.innolearn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_RuV2wlPIBrB9wgf18jk_VjQPcQ9KFiw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
