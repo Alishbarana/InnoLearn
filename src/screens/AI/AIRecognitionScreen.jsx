@@ -1,132 +1,396 @@
- // src/AI/AIRecognitionUpdate.jsx
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import Colors from "../../styles/colors";
+"use client"
 
-const AIRecognitionUpdate = ({ recognizedTerm, confidence, capturedImage }) => {
-  const navigation = useNavigation();
-  const displayTerms = {
-    array: 'Array',
-    tree: 'Tree',
-    list: 'List',
-    queue: 'Queue',
-    stack: 'Stack',
-    sort: 'Sort',
-    // Add more terms as necessary
-  };
+import { useState, useEffect, useRef } from "react"
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native"
+import { Camera, useCameraDevices } from "react-native-vision-camera"
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
+import Ionicons from "react-native-vector-icons/Ionicons"
+import Colors from "../../styles/colors"
+import { useONNXClassifier } from "../../hooks/useONNXClassifier"
+import AIRecognitionUpdate from "../../AI/AIRecognitionUpdate"
+
+const AIRecognitionScreen = ({ navigation }) => {
+  const [hasPermission, setHasPermission] = useState(false)
+  const [capturedImage, setCapturedImage] = useState(null)
+  const [recognitionResult, setRecognitionResult] = useState(null)
+  const cameraRef = useRef(null)
+  const devices = useCameraDevices()
+  const device = devices.back
+
+  // Use the custom ONNX hook
+  const {
+    classifyImage,
+    loading: modelLoading,
+    error: modelError,
+    isProcessing,
+    isReady,
+    retryLoadModel,
+  } = useONNXClassifier()
+
+  useEffect(() => {
+    ;(async () => {
+      // Request camera permissions
+      const cameraPermission = await Camera.requestCameraPermission()
+      setHasPermission(cameraPermission === "authorized")
+    })()
+  }, [])
+
+  const takePicture = async () => {
+    if (cameraRef.current && isReady) {
+      try {
+        // Take a photo
+        const photo = await cameraRef.current.takePhoto({
+          flash: "off",
+          quality: 90,
+        })
+
+        const imageUri = `file://${photo.path}`
+        setCapturedImage(imageUri)
+
+        // Process the image with ONNX model
+        await processImage(imageUri)
+      } catch (error) {
+        console.error("Error taking picture:", error)
+        Alert.alert("Error", "Failed to take picture. Please try again.")
+      }
+    } else if (!isReady) {
+      Alert.alert("Model Loading", "Please wait for the AI model to load before taking a picture.")
+    }
+  }
+
+  const processImage = async (imageUri) => {
+    try {
+      console.log("Processing image with ONNX model...")
+
+      // Run classification
+      const result = await classifyImage(imageUri)
+
+      // Set the recognition result
+      setRecognitionResult(result)
+
+      console.log("Image processed successfully:", result)
+    } catch (error) {
+      console.error("Error processing image:", error)
+      Alert.alert("Processing Error", "Failed to analyze the image. Please try again.")
+      setRecognitionResult(null)
+    }
+  }
 
   const resetCamera = () => {
-    // Implement reset camera logic here
-  };
+    setCapturedImage(null)
+    setRecognitionResult(null)
+  }
+
+  const handleRetryModel = () => {
+    Alert.alert("Retry Model Loading", "Do you want to retry loading the AI model?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Retry", onPress: retryLoadModel },
+    ])
+  }
+
+  // Show permission request screen
+  if (!hasPermission) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="camera-outline" size={wp(15)} color={Colors.primary} />
+        <Text style={styles.permissionText}>Camera permission is required</Text>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={async () => {
+            const cameraPermission = await Camera.requestCameraPermission()
+            setHasPermission(cameraPermission === "authorized")
+          }}
+        >
+          <Text style={styles.permissionButtonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // Show model error screen
+  if (modelError) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="warning-outline" size={wp(15)} color="red" />
+        <Text style={styles.errorText}>Failed to load AI model</Text>
+        <Text style={styles.errorSubText}>{modelError.message}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleRetryModel}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  // Show loading screen while model loads
+  if (modelLoading || !device) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>{modelLoading ? "Loading AI model..." : "Loading camera..."}</Text>
+      </View>
+    )
+  }
 
   return (
-    <View style={styles.actionButtonsContainer}>
-      <TouchableOpacity style={styles.secondaryButton} onPress={resetCamera}>
-        <Ionicons name="camera-outline" size={wp(5)} color={Colors.primary} />
-        <Text style={styles.secondaryButtonText}>Take Another</Text>
-      </TouchableOpacity>
-      
-      {/* Add AR Viewer Button */}
-      <TouchableOpacity 
-        style={styles.arViewerButton} 
-        onPress={() => {
-          if (recognizedTerm) {
-            navigation.navigate("ARViewer", { 
-              recognizedTerm: recognizedTerm,
-              confidence: confidence,
-              imageUri: capturedImage
-            });
-          }
-        }}
-        disabled={!recognizedTerm}
-      >
-        <MaterialCommunityIcons name="augmented-reality" size={wp(5)} color="#fff" />
-        <Text style={styles.arViewerButtonText}>View in AR</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.primaryButton} 
-        onPress={() => {
-          // Navigate to the content detail page with the recognized term
-          if (recognizedTerm) {
-            navigation.navigate("ContentDetail", { 
-              title: displayTerms[recognizedTerm], 
-              category: recognizedTerm.includes('array') || 
-                       recognizedTerm.includes('tree') || 
-                       recognizedTerm.includes('list') || 
-                       recognizedTerm.includes('queue') || 
-                       recognizedTerm.includes('stack') || 
-                       recognizedTerm.includes('sort') 
-                       ? "Data Structures" : "Computer Networking"
-            });
-          }
-        }}
-        disabled={!recognizedTerm}
-      >
-        <Ionicons name="book-outline" size={wp(5)} color="#fff" />
-        <Text style={styles.primaryButtonText}>Learn About It</Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      {!capturedImage ? (
+        <>
+          <Camera ref={cameraRef} style={styles.camera} device={device} isActive={true} photo={true} />
+          <View style={styles.overlay}>
+            <View style={styles.header}>
+              <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
+                <Ionicons name="arrow-back" size={wp(6)} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.headerText}>AI Recognition</Text>
+              <View style={styles.modelStatus}>
+                {isReady ? (
+                  <Ionicons name="checkmark-circle" size={wp(5)} color="#4CAF50" />
+                ) : (
+                  <ActivityIndicator size="small" color="#fff" />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.guideBox}>
+              <Text style={styles.guideText}>Position the data structure or networking concept in the frame</Text>
+              {!isReady && <Text style={styles.guideSubText}>AI model is loading...</Text>}
+            </View>
+
+            <View style={styles.captureContainer}>
+              <TouchableOpacity
+                style={[styles.captureButton, !isReady && styles.captureButtonDisabled]}
+                onPress={takePicture}
+                disabled={!isReady}
+              >
+                <View style={[styles.captureButtonInner, !isReady && styles.captureButtonInnerDisabled]} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </>
+      ) : (
+        <View style={styles.resultContainer}>
+          <Image source={{ uri: capturedImage }} style={styles.capturedImage} />
+
+          {isProcessing ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.processingText}>Analyzing image...</Text>
+            </View>
+          ) : recognitionResult ? (
+            <View style={styles.recognitionContainer}>
+              <Text style={styles.recognizedLabel}>
+                Recognized: <Text style={styles.recognizedTerm}>{recognitionResult.recognizedTerm}</Text>
+              </Text>
+              <Text style={styles.confidenceText}>Confidence: {recognitionResult.confidence.toFixed(2)}%</Text>
+
+              <AIRecognitionUpdate
+                recognizedTerm={recognitionResult.recognizedTerm}
+                confidence={recognitionResult.confidence}
+                capturedImage={capturedImage}
+                resetCamera={resetCamera}
+              />
+            </View>
+          ) : (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Failed to recognize the image</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
-  actionButtonsContainer: {
-    flexDirection: 'column', // Change to column to accommodate 3 buttons
-    width: '100%',
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: wp(4),
+  },
+  camera: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "space-between",
+    padding: wp(4),
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: hp(2),
   },
-  arViewerButton: {
-    backgroundColor: Colors.ternary,
-    paddingVertical: hp(1.5),
-    paddingHorizontal: wp(4),
-    borderRadius: wp(3),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: wp(2),
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+  headerBackButton: {
+    padding: wp(2),
   },
-  arViewerButtonText: {
-    color: '#fff',
-    fontSize: wp(3.5),
-    fontWeight: '600',
+  headerText: {
+    color: "#fff",
+    fontSize: wp(4.5),
+    fontWeight: "600",
+    flex: 1,
     marginLeft: wp(2),
   },
-  // Update existing button styles to work with column layout
-  primaryButton: {
+  modelStatus: {
+    padding: wp(1),
+  },
+  guideBox: {
+    alignSelf: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: wp(3),
+    borderRadius: wp(2),
+    marginBottom: hp(10),
+  },
+  guideText: {
+    color: "#fff",
+    fontSize: wp(3.5),
+    textAlign: "center",
+  },
+  guideSubText: {
+    color: "#ffeb3b",
+    fontSize: wp(3),
+    textAlign: "center",
+    marginTop: wp(1),
+  },
+  captureContainer: {
+    alignItems: "center",
+    marginBottom: hp(4),
+  },
+  captureButton: {
+    width: wp(18),
+    height: wp(18),
+    borderRadius: wp(9),
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  captureButtonDisabled: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  captureButtonInner: {
+    width: wp(14),
+    height: wp(14),
+    borderRadius: wp(7),
+    backgroundColor: "#fff",
+  },
+  captureButtonInnerDisabled: {
+    backgroundColor: "#ccc",
+  },
+  resultContainer: {
+    flex: 1,
+  },
+  capturedImage: {
+    width: "100%",
+    height: "60%",
+    resizeMode: "contain",
+  },
+  processingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  processingText: {
+    fontSize: wp(4),
+    color: Colors.primary,
+    marginTop: hp(2),
+  },
+  recognitionContainer: {
+    flex: 1,
+    padding: wp(4),
+    backgroundColor: "#fff",
+  },
+  recognizedLabel: {
+    fontSize: wp(4),
+    marginBottom: hp(1),
+  },
+  recognizedTerm: {
+    fontWeight: "bold",
+    color: Colors.primary,
+  },
+  confidenceText: {
+    fontSize: wp(3.5),
+    color: "#666",
+    marginBottom: hp(3),
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  loadingText: {
+    fontSize: wp(4),
+    color: Colors.primary,
+    marginTop: hp(2),
+    textAlign: "center",
+  },
+  permissionText: {
+    fontSize: wp(4),
+    color: "#333",
+    textAlign: "center",
+    marginTop: hp(2),
+    marginBottom: hp(2),
+  },
+  errorText: {
+    fontSize: wp(4),
+    color: "red",
+    marginBottom: hp(2),
+    textAlign: "center",
+  },
+  errorSubText: {
+    fontSize: wp(3),
+    color: "#666",
+    marginBottom: hp(2),
+    textAlign: "center",
+  },
+  permissionButton: {
     backgroundColor: Colors.primary,
     paddingVertical: hp(1.5),
-    paddingHorizontal: wp(4),
-    borderRadius: wp(3),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: wp(2),
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    paddingHorizontal: wp(6),
+    borderRadius: wp(2),
   },
-  secondaryButton: {
-    backgroundColor: Colors.quartery,
+  permissionButtonText: {
+    color: "#fff",
+    fontSize: wp(3.5),
+    fontWeight: "600",
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
     paddingVertical: hp(1.5),
-    paddingHorizontal: wp(4),
-    borderRadius: wp(3),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: wp(2),
+    paddingHorizontal: wp(6),
+    borderRadius: wp(2),
+    marginBottom: hp(2),
   },
-});
+  retryButtonText: {
+    color: "#fff",
+    fontSize: wp(3.5),
+    fontWeight: "600",
+  },
+  backButton: {
+    backgroundColor: "#666",
+    paddingVertical: hp(1.5),
+    paddingHorizontal: wp(6),
+    borderRadius: wp(2),
+  },
+  backButtonText: {
+    color: "#fff",
+    fontSize: wp(3.5),
+    fontWeight: "600",
+  },
+})
 
-export default AIRecognitionUpdate;
+export default AIRecognitionScreen
+// This code is a React Native screen for AI-based image recognition using ONNX models.
