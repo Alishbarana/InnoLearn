@@ -1,21 +1,24 @@
-"use client"
-
 import { useState, useEffect, useRef } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native"
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, Linking, Platform } from "react-native"
 import { Camera, useCameraDevices } from "react-native-vision-camera"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
 import Ionicons from "react-native-vector-icons/Ionicons"
 import Colors from "../../styles/colors"
 import { useONNXClassifier } from "../../hooks/useONNXClassifier"
-import AIRecognitionUpdate from "../../AI/AIRecognitionUpdate"
+import AIRecognitionUpdate from "../../components/common/AIRecognitionUpdate"
 
 const AIRecognitionScreen = ({ navigation }) => {
   const [hasPermission, setHasPermission] = useState(false)
   const [capturedImage, setCapturedImage] = useState(null)
   const [recognitionResult, setRecognitionResult] = useState(null)
   const cameraRef = useRef(null)
-  const devices = useCameraDevices()
-  const device = devices.back
+  const devices = useCameraDevices();
+  console.log("Available camera devices:", devices);
+
+  // Find the first back camera device
+  const device = Array.isArray(devices)
+    ? devices.find((d) => d.position === "back")
+    : undefined;
 
   // Use the custom ONNX hook
   const {
@@ -28,11 +31,11 @@ const AIRecognitionScreen = ({ navigation }) => {
   } = useONNXClassifier()
 
   useEffect(() => {
-    ;(async () => {
-      // Request camera permissions
-      const cameraPermission = await Camera.requestCameraPermission()
-      setHasPermission(cameraPermission === "authorized")
-    })()
+    (async () => {
+      const cameraPermission = await Camera.requestCameraPermission();
+      console.log("Camera permission status (useEffect):", cameraPermission);
+      setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted");
+    })();
   }, [])
 
   const takePicture = async () => {
@@ -97,8 +100,19 @@ const AIRecognitionScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.permissionButton}
           onPress={async () => {
-            const cameraPermission = await Camera.requestCameraPermission()
-            setHasPermission(cameraPermission === "authorized")
+            const cameraPermission = await Camera.requestCameraPermission();
+            console.log("Camera permission status (button):", cameraPermission);
+            setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted");
+            if (cameraPermission === "denied" || cameraPermission === "blocked") {
+              Alert.alert(
+                "Permission Required",
+                "Camera permission is permanently denied. Please enable it in app settings.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Open Settings", onPress: () => Linking.openSettings() },
+                ]
+              );
+            }
           }}
         >
           <Text style={styles.permissionButtonText}>Grant Permission</Text>
