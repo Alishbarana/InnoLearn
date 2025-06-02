@@ -4,7 +4,7 @@ import { Camera, useCameraDevices } from "react-native-vision-camera"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
 import Ionicons from "react-native-vector-icons/Ionicons"
 import Colors from "../../styles/colors"
-import { useONNXClassifier } from "../../hooks/useONNXClassifier"
+import { useMLKitTextRecognition } from "../../hooks/useMLKitTextRecognition"
 import AIRecognitionUpdate from "../../components/common/AIRecognitionUpdate"
 
 const AIRecognitionScreen = ({ navigation }) => {
@@ -20,15 +20,14 @@ const AIRecognitionScreen = ({ navigation }) => {
     ? devices.find((d) => d.position === "back")
     : undefined;
 
-  // Use the custom ONNX hook
+  // Use the ML Kit text recognition hook
   const {
-    classifyImage,
-    loading: modelLoading,
-    error: modelError,
+    recognizeText,
     isProcessing,
+    error: modelError,
     isReady,
-    retryLoadModel,
-  } = useONNXClassifier()
+    clearError,
+  } = useMLKitTextRecognition()
 
   useEffect(() => {
     (async () => {
@@ -39,7 +38,7 @@ const AIRecognitionScreen = ({ navigation }) => {
   }, [])
 
   const takePicture = async () => {
-    if (cameraRef.current && isReady) {
+    if (cameraRef.current) {
       try {
         // Take a photo
         const photo = await cameraRef.current.takePhoto({
@@ -50,28 +49,35 @@ const AIRecognitionScreen = ({ navigation }) => {
         const imageUri = `file://${photo.path}`
         setCapturedImage(imageUri)
 
-        // Process the image with ONNX model
+        // Process the image with ML Kit
         await processImage(imageUri)
       } catch (error) {
         console.error("Error taking picture:", error)
         Alert.alert("Error", "Failed to take picture. Please try again.")
       }
-    } else if (!isReady) {
-      Alert.alert("Model Loading", "Please wait for the AI model to load before taking a picture.")
     }
   }
 
   const processImage = async (imageUri) => {
     try {
-      console.log("Processing image with ONNX model...")
+      console.log("Processing image with ML Kit...")
 
-      // Run classification
-      const result = await classifyImage(imageUri)
+      // Run text recognition
+      const result = await recognizeText(imageUri)
 
       // Set the recognition result
       setRecognitionResult(result)
 
       console.log("Image processed successfully:", result)
+      
+      // Show alert if no term was recognized
+      if (!result.recognizedTerm) {
+        Alert.alert(
+          "No IT Term Found",
+          `Extracted text: "${result.extractedText}"\n\nPlease try again with clearer text.`,
+          [{ text: "OK" }]
+        )
+      }
     } catch (error) {
       console.error("Error processing image:", error)
       Alert.alert("Processing Error", "Failed to analyze the image. Please try again.")
@@ -82,13 +88,7 @@ const AIRecognitionScreen = ({ navigation }) => {
   const resetCamera = () => {
     setCapturedImage(null)
     setRecognitionResult(null)
-  }
-
-  const handleRetryModel = () => {
-    Alert.alert("Retry Model Loading", "Do you want to retry loading the AI model?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Retry", onPress: retryLoadModel },
-    ])
+    clearError()
   }
 
   // Show permission request screen
@@ -121,14 +121,14 @@ const AIRecognitionScreen = ({ navigation }) => {
     )
   }
 
-  // Show model error screen
+  // Show error screen
   if (modelError) {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="warning-outline" size={wp(15)} color="red" />
-        <Text style={styles.errorText}>Failed to load AI model</Text>
+        <Text style={styles.errorText}>Text Recognition Error</Text>
         <Text style={styles.errorSubText}>{modelError.message}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleRetryModel}>
+        <TouchableOpacity style={styles.retryButton} onPress={clearError}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -138,12 +138,12 @@ const AIRecognitionScreen = ({ navigation }) => {
     )
   }
 
-  // Show loading screen while model loads
-  if (modelLoading || !device) {
+  // Show loading screen while camera loads
+  if (!device) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>{modelLoading ? "Loading AI model..." : "Loading camera..."}</Text>
+        <Text style={styles.loadingText}>Loading camera...</Text>
       </View>
     )
   }
@@ -158,28 +158,23 @@ const AIRecognitionScreen = ({ navigation }) => {
               <TouchableOpacity style={styles.headerBackButton} onPress={() => navigation.goBack()}>
                 <Ionicons name="arrow-back" size={wp(6)} color="#fff" />
               </TouchableOpacity>
-              <Text style={styles.headerText}>AI Recognition</Text>
+              <Text style={styles.headerText}>Text Recognition</Text>
               <View style={styles.modelStatus}>
-                {isReady ? (
-                  <Ionicons name="checkmark-circle" size={wp(5)} color="#4CAF50" />
-                ) : (
-                  <ActivityIndicator size="small" color="#fff" />
-                )}
+                <Ionicons name="checkmark-circle" size={wp(5)} color="#4CAF50" />
               </View>
             </View>
 
             <View style={styles.guideBox}>
-              <Text style={styles.guideText}>Position the data structure or networking concept in the frame</Text>
-              {!isReady && <Text style={styles.guideSubText}>AI model is loading...</Text>}
+              <Text style={styles.guideText}>Position the IT term clearly in the frame</Text>
+              <Text style={styles.guideSubText}>Works with handwritten and printed text</Text>
             </View>
 
             <View style={styles.captureContainer}>
               <TouchableOpacity
-                style={[styles.captureButton, !isReady && styles.captureButtonDisabled]}
+                style={styles.captureButton}
                 onPress={takePicture}
-                disabled={!isReady}
               >
-                <View style={[styles.captureButtonInner, !isReady && styles.captureButtonInnerDisabled]} />
+                <View style={styles.captureButtonInner} />
               </TouchableOpacity>
             </View>
           </View>
@@ -191,25 +186,42 @@ const AIRecognitionScreen = ({ navigation }) => {
           {isProcessing ? (
             <View style={styles.processingContainer}>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.processingText}>Analyzing image...</Text>
+              <Text style={styles.processingText}>Recognizing text...</Text>
             </View>
           ) : recognitionResult ? (
             <View style={styles.recognitionContainer}>
-              <Text style={styles.recognizedLabel}>
-                Recognized: <Text style={styles.recognizedTerm}>{recognitionResult.recognizedTerm}</Text>
-              </Text>
-              <Text style={styles.confidenceText}>Confidence: {recognitionResult.confidence.toFixed(2)}%</Text>
+              {recognitionResult.recognizedTerm ? (
+                <>
+                  <Text style={styles.recognizedLabel}>
+                    Recognized: <Text style={styles.recognizedTerm}>{recognitionResult.recognizedTerm.replace("_", " ")}</Text>
+                  </Text>
+                  <Text style={styles.confidenceText}>Confidence: {recognitionResult.confidence.toFixed(1)}%</Text>
+                  {recognitionResult.extractedText && (
+                    <Text style={styles.extractedText}>Extracted: "{recognitionResult.extractedText}"</Text>
+                  )}
 
-              <AIRecognitionUpdate
-                recognizedTerm={recognitionResult.recognizedTerm}
-                confidence={recognitionResult.confidence}
-                capturedImage={capturedImage}
-                resetCamera={resetCamera}
-              />
+                  <AIRecognitionUpdate
+                    recognizedTerm={recognitionResult.recognizedTerm}
+                    confidence={recognitionResult.confidence}
+                    capturedImage={capturedImage}
+                    resetCamera={resetCamera}
+                  />
+                </>
+              ) : (
+                <View style={styles.noMatchContainer}>
+                  <Text style={styles.noMatchText}>No IT term recognized</Text>
+                  {recognitionResult.extractedText && (
+                    <Text style={styles.extractedText}>Extracted: "{recognitionResult.extractedText}"</Text>
+                  )}
+                  <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
+                    <Text style={styles.retryButtonText}>Try Again</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>Failed to recognize the image</Text>
+              <Text style={styles.errorText}>Failed to recognize text</Text>
               <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
                 <Text style={styles.retryButtonText}>Try Again</Text>
               </TouchableOpacity>
@@ -290,24 +302,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  captureButtonDisabled: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
   captureButtonInner: {
     width: wp(14),
     height: wp(14),
     borderRadius: wp(7),
     backgroundColor: "#fff",
   },
-  captureButtonInnerDisabled: {
-    backgroundColor: "#ccc",
-  },
   resultContainer: {
     flex: 1,
   },
   capturedImage: {
     width: "100%",
-    height: "60%",
+    height: "50%",
     resizeMode: "contain",
   },
   processingContainer: {
@@ -337,7 +343,22 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontSize: wp(3.5),
     color: "#666",
+    marginBottom: hp(1),
+  },
+  extractedText: {
+    fontSize: wp(3.5),
+    color: "#888",
+    fontStyle: "italic",
     marginBottom: hp(3),
+  },
+  noMatchContainer: {
+    alignItems: "center",
+    paddingVertical: hp(2),
+  },
+  noMatchText: {
+    fontSize: wp(4),
+    color: "#ff6b35",
+    marginBottom: hp(1),
   },
   errorContainer: {
     flex: 1,
@@ -386,7 +407,7 @@ const styles = StyleSheet.create({
     paddingVertical: hp(1.5),
     paddingHorizontal: wp(6),
     borderRadius: wp(2),
-    marginBottom: hp(2),
+    marginTop: hp(2),
   },
   retryButtonText: {
     color: "#fff",
@@ -407,4 +428,3 @@ const styles = StyleSheet.create({
 })
 
 export default AIRecognitionScreen
-// This code is a React Native screen for AI-based image recognition using ONNX models.
