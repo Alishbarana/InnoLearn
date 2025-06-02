@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useCallback } from "react"
 import textRecognitionService from "../services/mlkit/textRecognitionService"
 
@@ -15,6 +17,8 @@ export const useMLKitTextRecognition = () => {
       try {
         setIsProcessing(true)
         setError(null)
+
+        console.log("Starting text recognition for:", imageUri)
 
         const result = await textRecognitionService.recognizeITTerm(imageUri)
 

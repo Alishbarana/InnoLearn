@@ -1,5 +1,18 @@
+"use client"
+
 import { useState, useEffect, useRef } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert, Linking, Platform } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Animated,
+  ScrollView,
+} from "react-native"
 import { Camera, useCameraDevices } from "react-native-vision-camera"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
 import Ionicons from "react-native-vector-icons/Ionicons"
@@ -12,30 +25,47 @@ const AIRecognitionScreen = ({ navigation }) => {
   const [capturedImage, setCapturedImage] = useState(null)
   const [recognitionResult, setRecognitionResult] = useState(null)
   const cameraRef = useRef(null)
-  const devices = useCameraDevices();
-  console.log("Available camera devices:", devices);
+  const fadeAnim = useRef(new Animated.Value(1)).current // For guide text fade animation
+
+  const devices = useCameraDevices()
+  console.log("Available camera devices:", devices)
 
   // Find the first back camera device
-  const device = Array.isArray(devices)
-    ? devices.find((d) => d.position === "back")
-    : undefined;
+  const device = Array.isArray(devices) ? devices.find((d) => d.position === "back") : undefined
 
   // Use the ML Kit text recognition hook
-  const {
-    recognizeText,
-    isProcessing,
-    error: modelError,
-    isReady,
-    clearError,
-  } = useMLKitTextRecognition()
+  const { recognizeText, isProcessing, error: modelError, isReady, clearError } = useMLKitTextRecognition()
 
   useEffect(() => {
-    (async () => {
-      const cameraPermission = await Camera.requestCameraPermission();
-      console.log("Camera permission status (useEffect):", cameraPermission);
-      setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted");
-    })();
+    ;(async () => {
+      const cameraPermission = await Camera.requestCameraPermission()
+      console.log("Camera permission status (useEffect):", cameraPermission)
+      setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted")
+    })()
   }, [])
+
+  // Fade animation for guide text
+  useEffect(() => {
+    if (hasPermission && device && !capturedImage) {
+      // Start fade animation after 3 seconds
+      const timer = setTimeout(() => {
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }).start()
+      }, 3000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [hasPermission, device, capturedImage, fadeAnim])
+
+  // Reset fade animation when camera resets
+  useEffect(() => {
+    if (!capturedImage) {
+      fadeAnim.setValue(1)
+    }
+  }, [capturedImage, fadeAnim])
 
   const takePicture = async () => {
     if (cameraRef.current) {
@@ -69,13 +99,17 @@ const AIRecognitionScreen = ({ navigation }) => {
       setRecognitionResult(result)
 
       console.log("Image processed successfully:", result)
-      
+
       // Show alert if no term was recognized
       if (!result.recognizedTerm) {
         Alert.alert(
           "No IT Term Found",
-          `Extracted text: "${result.extractedText}"\n\nPlease try again with clearer text.`,
-          [{ text: "OK" }]
+          `Extracted text: "${result.extractedText}"\n\n${
+            result.suggestions && result.suggestions.length > 0
+              ? `Suggestions: ${result.suggestions.map((s) => s.term).join(", ")}`
+              : "Please try again with clearer text."
+          }`,
+          [{ text: "OK" }],
         )
       }
     } catch (error) {
@@ -100,9 +134,9 @@ const AIRecognitionScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.permissionButton}
           onPress={async () => {
-            const cameraPermission = await Camera.requestCameraPermission();
-            console.log("Camera permission status (button):", cameraPermission);
-            setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted");
+            const cameraPermission = await Camera.requestCameraPermission()
+            console.log("Camera permission status (button):", cameraPermission)
+            setHasPermission(cameraPermission === "authorized" || cameraPermission === "granted")
             if (cameraPermission === "denied" || cameraPermission === "blocked") {
               Alert.alert(
                 "Permission Required",
@@ -110,8 +144,8 @@ const AIRecognitionScreen = ({ navigation }) => {
                 [
                   { text: "Cancel", style: "cancel" },
                   { text: "Open Settings", onPress: () => Linking.openSettings() },
-                ]
-              );
+                ],
+              )
             }
           }}
         >
@@ -164,16 +198,14 @@ const AIRecognitionScreen = ({ navigation }) => {
               </View>
             </View>
 
-            <View style={styles.guideBox}>
+            {/* Animated Guide Box */}
+            <Animated.View style={[styles.guideBox, { opacity: fadeAnim }]}>
               <Text style={styles.guideText}>Position the IT term clearly in the frame</Text>
               <Text style={styles.guideSubText}>Works with handwritten and printed text</Text>
-            </View>
+            </Animated.View>
 
             <View style={styles.captureContainer}>
-              <TouchableOpacity
-                style={styles.captureButton}
-                onPress={takePicture}
-              >
+              <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
                 <View style={styles.captureButtonInner} />
               </TouchableOpacity>
             </View>
@@ -189,36 +221,97 @@ const AIRecognitionScreen = ({ navigation }) => {
               <Text style={styles.processingText}>Recognizing text...</Text>
             </View>
           ) : recognitionResult ? (
-            <View style={styles.recognitionContainer}>
-              {recognitionResult.recognizedTerm ? (
-                <>
-                  <Text style={styles.recognizedLabel}>
-                    Recognized: <Text style={styles.recognizedTerm}>{recognitionResult.recognizedTerm.replace("_", " ")}</Text>
-                  </Text>
-                  <Text style={styles.confidenceText}>Confidence: {recognitionResult.confidence.toFixed(1)}%</Text>
-                  {recognitionResult.extractedText && (
-                    <Text style={styles.extractedText}>Extracted: "{recognitionResult.extractedText}"</Text>
-                  )}
+            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.recognitionContainer}>
+                {recognitionResult.recognizedTerm ? (
+                  <>
+                    <View style={styles.resultHeader}>
+                      <Text style={styles.recognizedLabel}>
+                        Recognized:{" "}
+                        <Text style={styles.recognizedTerm}>{recognitionResult.recognizedTerm.replace("_", " ")}</Text>
+                      </Text>
+                      {recognitionResult.specificTerm && (
+                        <Text style={styles.specificTermText}>
+                          Found: <Text style={styles.specificTerm}>{recognitionResult.specificTerm}</Text>
+                        </Text>
+                      )}
+                      <Text style={styles.confidenceText}>Confidence: {recognitionResult.confidence.toFixed(1)}%</Text>
+                      <Text style={styles.matchTypeText}>Match Type: {recognitionResult.matchType}</Text>
+                    </View>
 
-                  <AIRecognitionUpdate
-                    recognizedTerm={recognitionResult.recognizedTerm}
-                    confidence={recognitionResult.confidence}
-                    capturedImage={capturedImage}
-                    resetCamera={resetCamera}
-                  />
-                </>
-              ) : (
-                <View style={styles.noMatchContainer}>
-                  <Text style={styles.noMatchText}>No IT term recognized</Text>
-                  {recognitionResult.extractedText && (
-                    <Text style={styles.extractedText}>Extracted: "{recognitionResult.extractedText}"</Text>
-                  )}
-                  <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
-                    <Text style={styles.retryButtonText}>Try Again</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
+                    {recognitionResult.extractedText && (
+                      <View style={styles.extractedTextContainer}>
+                        <Text style={styles.extractedTextLabel}>Extracted Text:</Text>
+                        <Text style={styles.extractedText}>"{recognitionResult.extractedText}"</Text>
+                      </View>
+                    )}
+
+                    {recognitionResult.keywords && recognitionResult.keywords.length > 0 && (
+                      <View style={styles.keywordsContainer}>
+                        <Text style={styles.keywordsLabel}>Keywords Found:</Text>
+                        <Text style={styles.keywordsText}>{recognitionResult.keywords.join(", ")}</Text>
+                      </View>
+                    )}
+
+                    {recognitionResult.allMatches && recognitionResult.allMatches.length > 1 && (
+                      <View style={styles.alternativeMatchesContainer}>
+                        <Text style={styles.alternativeMatchesLabel}>Alternative Matches:</Text>
+                        {recognitionResult.allMatches.slice(1, 3).map((match, index) => (
+                          <Text key={index} style={styles.alternativeMatchText}>
+                            • {match.specificTerm} ({match.confidence.toFixed(1)}%)
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+
+                    <AIRecognitionUpdate
+                      recognizedTerm={recognitionResult.recognizedTerm}
+                      confidence={recognitionResult.confidence}
+                      capturedImage={capturedImage}
+                      resetCamera={resetCamera}
+                    />
+                  </>
+                ) : (
+                  <View style={styles.noMatchContainer}>
+                    <Text style={styles.noMatchText}>No IT term recognized</Text>
+                    {recognitionResult.extractedText && (
+                      <View style={styles.extractedTextContainer}>
+                        <Text style={styles.extractedTextLabel}>Extracted Text:</Text>
+                        <Text style={styles.extractedText}>"{recognitionResult.extractedText}"</Text>
+                      </View>
+                    )}
+
+                    {recognitionResult.suggestions && recognitionResult.suggestions.length > 0 && (
+                      <View style={styles.suggestionsContainer}>
+                        <Text style={styles.suggestionsLabel}>Did you mean:</Text>
+                        {recognitionResult.suggestions.map((suggestion, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={styles.suggestionItem}
+                            onPress={() => {
+                              // Handle suggestion selection
+                              setRecognitionResult({
+                                ...recognitionResult,
+                                recognizedTerm: suggestion.mainCategory,
+                                specificTerm: suggestion.term,
+                                confidence: 80,
+                                matchType: "suggestion",
+                              })
+                            }}
+                          >
+                            <Text style={styles.suggestionText}>• {suggestion.term}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
+                      <Text style={styles.retryButtonText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
           ) : (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>Failed to recognize text</Text>
@@ -313,8 +406,12 @@ const styles = StyleSheet.create({
   },
   capturedImage: {
     width: "100%",
-    height: "50%",
+    height: "40%",
     resizeMode: "contain",
+  },
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: "#fff",
   },
   processingContainer: {
     flex: 1,
@@ -328,28 +425,91 @@ const styles = StyleSheet.create({
     marginTop: hp(2),
   },
   recognitionContainer: {
-    flex: 1,
     padding: wp(4),
-    backgroundColor: "#fff",
+    paddingBottom: hp(10), // Extra padding for scroll
+  },
+  resultHeader: {
+    marginBottom: hp(2),
+    padding: wp(3),
+    backgroundColor: "#f8f9fa",
+    borderRadius: wp(2),
   },
   recognizedLabel: {
     fontSize: wp(4),
-    marginBottom: hp(1),
+    marginBottom: hp(0.5),
   },
   recognizedTerm: {
     fontWeight: "bold",
     color: Colors.primary,
+    textTransform: "capitalize",
+  },
+  specificTermText: {
+    fontSize: wp(3.5),
+    marginBottom: hp(0.5),
+  },
+  specificTerm: {
+    fontWeight: "600",
+    color: "#007AFF",
   },
   confidenceText: {
     fontSize: wp(3.5),
     color: "#666",
-    marginBottom: hp(1),
+    marginBottom: hp(0.5),
+  },
+  matchTypeText: {
+    fontSize: wp(3),
+    color: "#888",
+    textTransform: "capitalize",
+  },
+  extractedTextContainer: {
+    marginBottom: hp(2),
+    padding: wp(3),
+    backgroundColor: "#f0f0f0",
+    borderRadius: wp(2),
+  },
+  extractedTextLabel: {
+    fontSize: wp(3.5),
+    fontWeight: "600",
+    marginBottom: hp(0.5),
+    color: "#333",
   },
   extractedText: {
     fontSize: wp(3.5),
-    color: "#888",
+    color: "#666",
     fontStyle: "italic",
-    marginBottom: hp(3),
+  },
+  keywordsContainer: {
+    marginBottom: hp(2),
+    padding: wp(3),
+    backgroundColor: "#e8f4fd",
+    borderRadius: wp(2),
+  },
+  keywordsLabel: {
+    fontSize: wp(3.5),
+    fontWeight: "600",
+    marginBottom: hp(0.5),
+    color: "#333",
+  },
+  keywordsText: {
+    fontSize: wp(3.5),
+    color: "#007AFF",
+  },
+  alternativeMatchesContainer: {
+    marginBottom: hp(2),
+    padding: wp(3),
+    backgroundColor: "#fff3cd",
+    borderRadius: wp(2),
+  },
+  alternativeMatchesLabel: {
+    fontSize: wp(3.5),
+    fontWeight: "600",
+    marginBottom: hp(0.5),
+    color: "#333",
+  },
+  alternativeMatchText: {
+    fontSize: wp(3.5),
+    color: "#856404",
+    marginBottom: hp(0.25),
   },
   noMatchContainer: {
     alignItems: "center",
@@ -358,7 +518,28 @@ const styles = StyleSheet.create({
   noMatchText: {
     fontSize: wp(4),
     color: "#ff6b35",
+    marginBottom: hp(2),
+    textAlign: "center",
+  },
+  suggestionsContainer: {
+    marginTop: hp(2),
+    padding: wp(3),
+    backgroundColor: "#f8f9fa",
+    borderRadius: wp(2),
+    width: "100%",
+  },
+  suggestionsLabel: {
+    fontSize: wp(3.5),
+    fontWeight: "600",
     marginBottom: hp(1),
+    color: "#333",
+  },
+  suggestionItem: {
+    paddingVertical: hp(0.5),
+  },
+  suggestionText: {
+    fontSize: wp(3.5),
+    color: "#007AFF",
   },
   errorContainer: {
     flex: 1,
