@@ -92,22 +92,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   splashImage: {
-    width: "100%",
-    height: "100%",
+    width: "150%",
+    height: "150%",
     resizeMode: "contain",
+    marginRight: wp(4), // Adjusted for better centering
   },
   textContainer: {
     marginTop: hp(4),
     alignItems: "center",
   },
   appName: {
-    fontSize: hp(6),
+    fontSize: hp(4),
     fontWeight: "bold",
     color: Colors.primary,
     textAlign: "center",
+    marginTop: hp(2),
   },
   title: {
-    fontSize: hp(2),
+    fontSize: hp(1.8),
     color: Colors.secondary,
     textAlign: "center",
     marginTop: hp(1),

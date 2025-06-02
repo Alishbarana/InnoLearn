@@ -191,12 +191,12 @@
         <!-- Header Info -->
         <div class="ar-header">
             <div class="ar-title" id="model-title">Loading...</div>
-            <div class="ar-subtitle" id="model-subtitle">Tap and drag to rotate • Pinch to zoom</div>
+            <div class="ar-subtitle" id="model-subtitle">Model is fixed in space - move your camera around it</div>
         </div>
         
         <!-- Instructions -->
         <div id="ar-instructions" class="ar-instructions">
-            Move your device slowly to see the 3D model in your space
+            Model is positioned in front of you - use controls to rotate manually
         </div>
         
         <!-- Controls -->
@@ -205,13 +205,13 @@
                 <span>🔄</span>
                 <span>Reset</span>
             </button>
-            <button class="ar-button" onclick="toggleAnimation()">
-                <span id="play-icon">⏸️</span>
-                <span id="play-text">Pause</span>
+            <button class="ar-button" onclick="rotateModel()">
+                <span>🔄</span>
+                <span>Rotate</span>
             </button>
             <button class="ar-button" onclick="changeSize()">
-                <span>📏</span>
-                <span>Size</span>
+                <span id="size-icon">📏</span>
+                <span id="size-text">Size</span>
             </button>
             <button class="ar-button" onclick="closeAR()">
                 <span>❌</span>
@@ -222,11 +222,28 @@
 
     <script>
         // Global variables
-        let scene, camera, renderer, model, controls;
-        let isAnimating = true;
+        let scene, camera, renderer, model;
         let currentSize = 1;
         let modelData = {};
         let cameraStream = null;
+        
+        // 🎯 MAIN CONFIGURATION - CHANGE THESE VALUES FOR YOUR DESIRED OUTPUT
+        const AR_CONFIG = {
+            // Model positioning (change these to adjust where model appears)
+            MODEL_DISTANCE: -1.5,     // How far from camera (negative = in front)
+            MODEL_HEIGHT: 0,          // Height offset (0 = center, positive = up)
+            MODEL_SIDE: 0,            // Side offset (0 = center, positive = right)
+            
+            // Model sizing
+            INITIAL_SCALE: 1.0,       // Starting size (1.0 = normal, 0.5 = half, 2.0 = double)
+            
+            // Camera settings
+            CAMERA_FOV: 75,           // Field of view (75 = normal, 90 = wider, 60 = narrower)
+            
+            // Auto rotation
+            AUTO_ROTATE: false,       // true = model rotates automatically, false = manual only
+            ROTATION_SPEED: 0.01      // Speed of auto rotation (if enabled)
+        };
         
         // Model configurations with your actual .glb files
         const MODEL_CONFIGS = {
@@ -234,71 +251,112 @@
                 title: "Array Data Structure",
                 subtitle: "Linear collection of elements with indexed access",
                 model: "file:///android_asset/models/array.glb",
-                scale: 0.8,
-                position: { x: 0, y: 0, z: -2 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                // 🎯 EXACT POSITION - Model appears directly in front of camera
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             binary_tree: {
                 title: "Binary Tree",
                 subtitle: "Hierarchical structure with parent-child relationships",
                 model: "file:///android_asset/models/binary_tree.glb",
-                scale: 1.0,
-                position: { x: 0, y: 0.5, z: -2.5 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             linked_list: {
                 title: "Linked List",
                 subtitle: "Sequential nodes connected via pointers",
                 model: "file:///android_asset/models/linked_list.glb",
-                scale: 0.7,
-                position: { x: 0, y: 0, z: -2 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             stack: {
                 title: "Stack (LIFO)",
                 subtitle: "Last In First Out data structure",
                 model: "file:///android_asset/models/stack.glb",
-                scale: 0.8,
-                position: { x: 0, y: 0, z: -2 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             queue: {
                 title: "Queue (FIFO)",
                 subtitle: "First In First Out data structure",
                 model: "file:///android_asset/models/queue.glb",
-                scale: 0.8,
-                position: { x: 0, y: 0, z: -2 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             merge_sort: {
                 title: "Merge Sort Algorithm",
                 subtitle: "Divide and conquer sorting technique",
                 model: "file:///android_asset/models/merge_sort.glb",
-                scale: 1.2,
-                position: { x: 0, y: 0.3, z: -3 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             osi_model: {
                 title: "OSI Model",
                 subtitle: "7-layer network communication framework",
                 model: "file:///android_asset/models/osi_model.glb",
-                scale: 0.9,
-                position: { x: 0, y: 0.8, z: -2.5 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             client_server: {
                 title: "Client-Server Architecture",
                 subtitle: "Distributed computing model",
                 model: "file:///android_asset/models/client_server.glb",
-                scale: 1.0,
-                position: { x: 0, y: 0, z: -2.5 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             firewall: {
                 title: "Network Firewall",
                 subtitle: "Security barrier for network traffic",
                 model: "file:///android_asset/models/firewall.glb",
-                scale: 0.9,
-                position: { x: 0, y: 0.2, z: -2.5 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             },
             router: {
                 title: "Network Router",
                 subtitle: "Data packet forwarding device",
                 model: "file:///android_asset/models/router.glb",
-                scale: 0.8,
-                position: { x: 0, y: 0, z: -2 }
+                scale: AR_CONFIG.INITIAL_SCALE,
+                position: { 
+                    x: AR_CONFIG.MODEL_SIDE, 
+                    y: AR_CONFIG.MODEL_HEIGHT, 
+                    z: AR_CONFIG.MODEL_DISTANCE 
+                }
             }
         };
         
@@ -382,9 +440,16 @@
             // Scene
             scene = new THREE.Scene();
             
-            // Camera
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            // 🎯 CAMERA SETUP - Fixed position for true AR
+            camera = new THREE.PerspectiveCamera(
+                AR_CONFIG.CAMERA_FOV, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            // Camera stays at origin (0,0,0) - like real AR
             camera.position.set(0, 0, 0);
+            camera.lookAt(0, 0, -1); // Look forward
             
             // Renderer
             renderer = new THREE.WebGLRenderer({ 
@@ -397,23 +462,17 @@
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // 🎯 LIGHTING SETUP - Good visibility for AR
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 5, 5);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(2, 2, 2);
             directionalLight.castShadow = true;
             scene.add(directionalLight);
             
-            // Controls
-            controls = new THREE.OrbitControls(camera, canvas);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enableZoom = true;
-            controls.enablePan = false;
-            controls.maxDistance = 10;
-            controls.minDistance = 1;
+            // 🎯 NO CONTROLS - Pure AR experience (camera doesn't move)
+            // No OrbitControls = camera stays fixed like real AR
             
             // Handle window resize
             window.addEventListener('resize', onWindowResize);
@@ -430,13 +489,16 @@
                     (gltf) => {
                         model = gltf.scene;
                         
-                        // Set model properties
+                        // 🎯 MODEL POSITIONING - Exactly where you want it
                         model.scale.setScalar(modelData.scale * currentSize);
                         model.position.set(
                             modelData.position.x,
                             modelData.position.y,
                             modelData.position.z
                         );
+                        
+                        // 🎯 MODEL ORIENTATION - Face the user directly
+                        model.rotation.set(0, 0, 0); // Face forward
                         
                         // Enable shadows
                         model.traverse((child) => {
@@ -449,7 +511,8 @@
                         // Add to scene
                         scene.add(model);
                         
-                        console.log('Model loaded successfully:', modelName);
+                        console.log('Model loaded and positioned at:', model.position);
+                        console.log('Model scale:', model.scale);
                         
                         // Send message to React Native
                         if (window.ReactNativeWebView) {
@@ -484,10 +547,10 @@
                 case 'array':
                     const group = new THREE.Group();
                     for(let i = 0; i < 5; i++) {
-                        const boxGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                        const boxGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
                         const boxMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
                         const box = new THREE.Mesh(boxGeometry, boxMaterial);
-                        box.position.x = (i - 2) * 0.4;
+                        box.position.x = (i - 2) * 0.25;
                         box.castShadow = true;
                         group.add(box);
                     }
@@ -497,10 +560,10 @@
                 case 'stack':
                     const stackGroup = new THREE.Group();
                     for(let i = 0; i < 4; i++) {
-                        const boxGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.5);
+                        const boxGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.3);
                         const boxMaterial = new THREE.MeshLambertMaterial({ color: 0xFF9800 });
                         const box = new THREE.Mesh(boxGeometry, boxMaterial);
-                        box.position.y = i * 0.25;
+                        box.position.y = i * 0.12;
                         box.castShadow = true;
                         stackGroup.add(box);
                     }
@@ -509,41 +572,42 @@
                     
                 case 'binary_tree':
                     const treeGroup = new THREE.Group();
-                    const rootGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                    const rootGeometry = new THREE.SphereGeometry(0.1, 16, 16);
                     const rootMaterial = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
                     
                     // Root
                     const root = new THREE.Mesh(rootGeometry, rootMaterial);
-                    root.position.y = 0.5;
+                    root.position.y = 0.2;
                     treeGroup.add(root);
                     
                     // Left child
                     const leftChild = new THREE.Mesh(rootGeometry, rootMaterial);
-                    leftChild.position.set(-0.3, 0, 0);
+                    leftChild.position.set(-0.2, 0, 0);
                     treeGroup.add(leftChild);
                     
                     // Right child
                     const rightChild = new THREE.Mesh(rootGeometry, rootMaterial);
-                    rightChild.position.set(0.3, 0, 0);
+                    rightChild.position.set(0.2, 0, 0);
                     treeGroup.add(rightChild);
                     
                     model = treeGroup;
                     break;
                     
                 default:
-                    geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                    geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
                     material = new THREE.MeshLambertMaterial({ color: 0x9C27B0 });
                     model = new THREE.Mesh(geometry, material);
                     break;
             }
             
-            // Set model properties
+            // 🎯 FALLBACK MODEL POSITIONING
             model.scale.setScalar(modelData.scale * currentSize);
             model.position.set(
                 modelData.position.x,
                 modelData.position.y,
                 modelData.position.z
             );
+            model.rotation.set(0, 0, 0); // Face forward
             
             // Enable shadows
             model.traverse((child) => {
@@ -556,28 +620,56 @@
             // Add to scene
             scene.add(model);
             
-            console.log('Fallback model created:', modelName);
+            console.log('Fallback model created and positioned:', modelName);
         }
         
         function updateUI() {
             document.getElementById('model-title').textContent = modelData.title;
             document.getElementById('model-subtitle').textContent = modelData.subtitle;
         }
+
+        function changeSize() {
+            if (model) {
+                // Cycle through sizes: 0.5x -> 1x -> 1.5x -> 2x -> back to 0.5x
+                if (currentSize <= 0.5) {
+                    currentSize = 1;
+                } else if (currentSize <= 1) {
+                    currentSize = 1.5;
+                } else if (currentSize <= 1.5) {
+                    currentSize = 2;
+                } else {
+                    currentSize = 0.5;
+                }
+                
+                model.scale.setScalar(modelData.scale * currentSize);
+                
+                // Update button text
+                const sizeText = document.getElementById('size-text');
+                sizeText.textContent = `${currentSize}x`;
+                
+                // Reset text after 2 seconds
+                setTimeout(() => {
+                    sizeText.textContent = 'Size';
+                }, 2000);
+            }
+        }
+
+        function rotateModel() {
+            if (model) {
+                // Rotate model by 45 degrees on Y axis
+                model.rotation.y += Math.PI / 4; // 45 degrees in radians
+            }
+        }
         
         function animate() {
             requestAnimationFrame(animate);
             
-            // Rotate model if animation is enabled
-            if (model && isAnimating) {
-                model.rotation.y += 0.01;
+            // 🎯 AUTO ROTATION (if enabled in config)
+            if (model && AR_CONFIG.AUTO_ROTATE) {
+                model.rotation.y += AR_CONFIG.ROTATION_SPEED;
             }
             
-            // Update controls
-            if (controls) {
-                controls.update();
-            }
-            
-            // Render scene
+            // 🎯 RENDER - No camera controls, pure AR
             if (renderer && scene && camera) {
                 renderer.render(scene, camera);
             }
@@ -592,6 +684,7 @@
         // Control functions
         function resetModel() {
             if (model) {
+                // 🎯 RESET TO ORIGINAL POSITION
                 model.rotation.set(0, 0, 0);
                 model.position.set(
                     modelData.position.x,
@@ -600,30 +693,7 @@
                 );
                 model.scale.setScalar(modelData.scale * currentSize);
                 
-                // Reset camera
-                camera.position.set(0, 0, 0);
-                controls.reset();
-            }
-        }
-        
-        function toggleAnimation() {
-            isAnimating = !isAnimating;
-            const playIcon = document.getElementById('play-icon');
-            const playText = document.getElementById('play-text');
-            
-            if (isAnimating) {
-                playIcon.textContent = '⏸️';
-                playText.textContent = 'Pause';
-            } else {
-                playIcon.textContent = '▶️';
-                playText.textContent = 'Play';
-            }
-        }
-        
-        function changeSize() {
-            if (model) {
-                currentSize = currentSize === 1 ? 1.5 : currentSize === 1.5 ? 0.5 : 1;
-                model.scale.setScalar(modelData.scale * currentSize);
+                console.log('Model reset to position:', model.position);
             }
         }
         
@@ -656,9 +726,6 @@
                 switch(data.type) {
                     case 'change_model':
                         changeModel(data.modelName);
-                        break;
-                    case 'toggle_animation':
-                        toggleAnimation();
                         break;
                     case 'reset_view':
                         resetModel();
