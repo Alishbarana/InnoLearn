@@ -1,3 +1,7 @@
+
+
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -103,6 +107,9 @@
             align-items: center;
             gap: 4px;
             min-width: 60px;
+            /* 🔧 FIX: Prevent button from triggering camera events */
+            touch-action: manipulation;
+            user-select: none;
         }
         
         .ar-button:hover {
@@ -111,6 +118,42 @@
         
         .ar-button:active {
             transform: scale(0.95);
+        }
+        
+        /* 🔧 NEW: Rotation controls */
+        .rotation-controls {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+            z-index: 4;
+        }
+        
+        .rotation-button {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        
+        .rotation-button:active {
+            transform: scale(0.9);
+            background: rgba(0, 0, 0, 1);
         }
         
         .ar-instructions {
@@ -191,29 +234,51 @@
         <!-- Header Info -->
         <div class="ar-header">
             <div class="ar-title" id="model-title">Loading...</div>
-            <div class="ar-subtitle" id="model-subtitle">Model is fixed in space - move your camera around it</div>
+            <div class="ar-subtitle" id="model-subtitle">Model is fixed in space - use rotation controls on right</div>
         </div>
         
         <!-- Instructions -->
         <div id="ar-instructions" class="ar-instructions">
-            Model is positioned in front of you - use controls to rotate manually
+            Use arrow buttons on right to rotate model smoothly in all directions
         </div>
         
-        <!-- Controls -->
+        <!-- 🔧 NEW: Smooth Rotation Controls -->
+        <div class="rotation-controls">
+            <button class="rotation-button" onmousedown="startRotation('up')" onmouseup="stopRotation()" ontouchstart="startRotation('up')" ontouchend="stopRotation()">
+                ⬆️
+            </button>
+            <div style="display: flex; gap: 10px;">
+                <button class="rotation-button" onmousedown="startRotation('left')" onmouseup="stopRotation()" ontouchstart="startRotation('left')" ontouchend="stopRotation()">
+                    ⬅️
+                </button>
+                <button class="rotation-button" onmousedown="startRotation('right')" onmouseup="stopRotation()" ontouchstart="startRotation('right')" ontouchend="stopRotation()">
+                    ➡️
+                </button>
+            </div>
+            <button class="rotation-button" onmousedown="startRotation('down')" onmouseup="stopRotation()" ontouchstart="startRotation('down')" ontouchend="stopRotation()">
+                ⬇️
+            </button>
+        </div>
+        
+        <!-- Main Controls -->
         <div class="ar-controls">
-            <button class="ar-button" onclick="resetModel()">
+            <button class="ar-button" onclick="resetModel()" type="button">
                 <span>🔄</span>
                 <span>Reset</span>
             </button>
-            <button class="ar-button" onclick="rotateModel()">
-                <span>🔄</span>
-                <span>Rotate</span>
+            <button class="ar-button" onclick="toggleAnimation()" type="button">
+                <span id="play-icon">⏸️</span>
+                <span id="play-text">Pause</span>
             </button>
-            <button class="ar-button" onclick="changeSize()">
+            <button class="ar-button" onclick="randomPosition()" type="button">
+                <span>🎲</span>
+                <span>Random</span>
+            </button>
+            <button class="ar-button" onclick="changeSize()" type="button">
                 <span id="size-icon">📏</span>
                 <span id="size-text">Size</span>
             </button>
-            <button class="ar-button" onclick="closeAR()">
+            <button class="ar-button" onclick="closeAR()" type="button">
                 <span>❌</span>
                 <span>Close</span>
             </button>
@@ -226,6 +291,12 @@
         let currentSize = 1;
         let modelData = {};
         let cameraStream = null;
+        let isAutoRotating = false;
+        
+        // 🔧 NEW: Smooth rotation variables
+        let rotationInterval = null;
+        let currentRotationDirection = null;
+        const ROTATION_SPEED = 0.05; // Smooth rotation speed
         
         // 🎯 MAIN CONFIGURATION - CHANGE THESE VALUES FOR YOUR DESIRED OUTPUT
         const AR_CONFIG = {
@@ -252,7 +323,6 @@
                 subtitle: "Linear collection of elements with indexed access",
                 model: "file:///android_asset/models/array.glb",
                 scale: AR_CONFIG.INITIAL_SCALE,
-                // 🎯 EXACT POSITION - Model appears directly in front of camera
                 position: { 
                     x: AR_CONFIG.MODEL_SIDE, 
                     y: AR_CONFIG.MODEL_HEIGHT, 
@@ -395,10 +465,10 @@
                 // Hide loading screen
                 document.getElementById('loading').classList.add('hidden');
                 
-                // Hide instructions after 4 seconds
+                // Hide instructions after 5 seconds
                 setTimeout(() => {
                     document.getElementById('ar-instructions').classList.add('hidden');
-                }, 4000);
+                }, 5000);
                 
             } catch (error) {
                 console.error('AR initialization failed:', error);
@@ -409,6 +479,11 @@
         async function initCamera() {
             try {
                 const video = document.getElementById('camera-feed');
+                
+                // 🔧 FIX: Better camera initialization to prevent permission errors
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera not supported');
+                }
                 
                 // Request camera access
                 cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -421,11 +496,11 @@
                 
                 video.srcObject = cameraStream;
                 
-                return new Promise((resolve) => {
+                return new Promise((resolve, reject) => {
                     video.onloadedmetadata = () => {
-                        video.play();
-                        resolve();
+                        video.play().then(resolve).catch(reject);
                     };
+                    video.onerror = reject;
                 });
                 
             } catch (error) {
@@ -470,9 +545,6 @@
             directionalLight.position.set(2, 2, 2);
             directionalLight.castShadow = true;
             scene.add(directionalLight);
-            
-            // 🎯 NO CONTROLS - Pure AR experience (camera doesn't move)
-            // No OrbitControls = camera stays fixed like real AR
             
             // Handle window resize
             window.addEventListener('resize', onWindowResize);
@@ -628,44 +700,120 @@
             document.getElementById('model-subtitle').textContent = modelData.subtitle;
         }
 
-        function changeSize() {
-            if (model) {
-                // Cycle through sizes: 0.5x -> 1x -> 1.5x -> 2x -> back to 0.5x
-                if (currentSize <= 0.5) {
-                    currentSize = 1;
-                } else if (currentSize <= 1) {
-                    currentSize = 1.5;
-                } else if (currentSize <= 1.5) {
-                    currentSize = 2;
-                } else {
-                    currentSize = 0.5;
+        // 🔧 NEW: Smooth rotation functions
+        function startRotation(direction) {
+            // Stop any existing rotation
+            stopRotation();
+            
+            currentRotationDirection = direction;
+            
+            // Start smooth rotation
+            rotationInterval = setInterval(() => {
+                if (model) {
+                    switch(direction) {
+                        case 'up':
+                            model.rotation.x -= ROTATION_SPEED; // Rotate up
+                            break;
+                        case 'down':
+                            model.rotation.x += ROTATION_SPEED; // Rotate down
+                            break;
+                        case 'left':
+                            model.rotation.y += ROTATION_SPEED; // Rotate left
+                            break;
+                        case 'right':
+                            model.rotation.y -= ROTATION_SPEED; // Rotate right
+                            break;
+                    }
                 }
-                
-                model.scale.setScalar(modelData.scale * currentSize);
-                
-                // Update button text
-                const sizeText = document.getElementById('size-text');
-                sizeText.textContent = `${currentSize}x`;
-                
-                // Reset text after 2 seconds
-                setTimeout(() => {
-                    sizeText.textContent = 'Size';
-                }, 2000);
+            }, 16); // ~60fps smooth rotation
+        }
+        
+        function stopRotation() {
+            if (rotationInterval) {
+                clearInterval(rotationInterval);
+                rotationInterval = null;
+                currentRotationDirection = null;
             }
         }
 
-        function rotateModel() {
-            if (model) {
-                // Rotate model by 45 degrees on Y axis
-                model.rotation.y += Math.PI / 4; // 45 degrees in radians
+        // 🔧 FIX: Improved button functions with error handling
+        function changeSize() {
+            try {
+                if (model) {
+                    // Cycle through sizes: 0.5x -> 1x -> 1.5x -> 2x -> back to 0.5x
+                    if (currentSize <= 0.5) {
+                        currentSize = 1;
+                    } else if (currentSize <= 1) {
+                        currentSize = 1.5;
+                    } else if (currentSize <= 1.5) {
+                        currentSize = 2;
+                    } else {
+                        currentSize = 0.5;
+                    }
+                    
+                    model.scale.setScalar(modelData.scale * currentSize);
+                    
+                    // Update button text
+                    const sizeText = document.getElementById('size-text');
+                    if (sizeText) {
+                        sizeText.textContent = `${currentSize}x`;
+                        
+                        // Reset text after 2 seconds
+                        setTimeout(() => {
+                            if (sizeText) {
+                                sizeText.textContent = 'Size';
+                            }
+                        }, 2000);
+                    }
+                }
+            } catch (error) {
+                console.error('Size change error:', error);
+            }
+        }
+
+        function toggleAnimation() {
+            try {
+                isAutoRotating = !isAutoRotating;
+                const playIcon = document.getElementById('play-icon');
+                const playText = document.getElementById('play-text');
+                
+                if (playIcon && playText) {
+                    if (isAutoRotating) {
+                        playIcon.textContent = '⏸️';
+                        playText.textContent = 'Pause';
+                    } else {
+                        playIcon.textContent = '▶️';
+                        playText.textContent = 'Play';
+                    }
+                }
+            } catch (error) {
+                console.error('Animation toggle error:', error);
+            }
+        }
+
+        function randomPosition() {
+            try {
+                if (model) {
+                    // Random position in a reasonable range
+                    model.position.x = (Math.random() - 0.5) * 2;
+                    model.position.y = (Math.random() - 0.5) * 1;
+                    model.position.z = -1 - Math.random() * 2;
+                    
+                    // Random rotation
+                    model.rotation.x = Math.random() * Math.PI * 2;
+                    model.rotation.y = Math.random() * Math.PI * 2;
+                    model.rotation.z = Math.random() * Math.PI * 2;
+                }
+            } catch (error) {
+                console.error('Random position error:', error);
             }
         }
         
         function animate() {
             requestAnimationFrame(animate);
             
-            // 🎯 AUTO ROTATION (if enabled in config)
-            if (model && AR_CONFIG.AUTO_ROTATE) {
+            // 🎯 AUTO ROTATION (if enabled)
+            if (model && isAutoRotating) {
                 model.rotation.y += AR_CONFIG.ROTATION_SPEED;
             }
             
@@ -683,39 +831,55 @@
         
         // Control functions
         function resetModel() {
-            if (model) {
-                // 🎯 RESET TO ORIGINAL POSITION
-                model.rotation.set(0, 0, 0);
-                model.position.set(
-                    modelData.position.x,
-                    modelData.position.y,
-                    modelData.position.z
-                );
-                model.scale.setScalar(modelData.scale * currentSize);
-                
-                console.log('Model reset to position:', model.position);
+            try {
+                if (model) {
+                    // 🎯 RESET TO ORIGINAL POSITION
+                    model.rotation.set(0, 0, 0);
+                    model.position.set(
+                        modelData.position.x,
+                        modelData.position.y,
+                        modelData.position.z
+                    );
+                    model.scale.setScalar(modelData.scale * currentSize);
+                    
+                    console.log('Model reset to position:', model.position);
+                }
+            } catch (error) {
+                console.error('Reset error:', error);
             }
         }
         
         function closeAR() {
-            // Stop camera stream
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-            }
-            
-            // Send message to React Native
-            if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'close_ar'
-                }));
+            try {
+                // Stop any rotation
+                stopRotation();
+                
+                // Stop camera stream
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Send message to React Native
+                if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'close_ar'
+                    }));
+                }
+            } catch (error) {
+                console.error('Close AR error:', error);
             }
         }
         
         function showError(message) {
             document.getElementById('loading').classList.add('hidden');
             const errorDiv = document.getElementById('error');
-            errorDiv.querySelector('div').textContent = message;
-            errorDiv.classList.remove('hidden');
+            if (errorDiv) {
+                const errorText = errorDiv.querySelector('div');
+                if (errorText) {
+                    errorText.textContent = message;
+                }
+                errorDiv.classList.remove('hidden');
+            }
         }
         
         // Handle messages from React Native
@@ -737,24 +901,32 @@
         });
         
         async function changeModel(newModelName) {
-            if (model) {
-                scene.remove(model);
+            try {
+                if (model) {
+                    scene.remove(model);
+                }
+                
+                modelData = MODEL_CONFIGS[newModelName] || MODEL_CONFIGS.array;
+                updateUI();
+                await loadModel(newModelName);
+            } catch (error) {
+                console.error('Change model error:', error);
             }
-            
-            modelData = MODEL_CONFIGS[newModelName] || MODEL_CONFIGS.array;
-            updateUI();
-            await loadModel(newModelName);
         }
         
-        // Error handling
+        // 🔧 FIX: Better error handling
         window.addEventListener('error', function(event) {
             console.error('AR Error:', event.error);
-            showError('An error occurred in AR view');
+            // Don't show camera error for general errors
+            if (!event.error.message.includes('camera')) {
+                showError('An error occurred in AR view');
+            }
         });
         
         // Handle page visibility change
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
+                stopRotation(); // Stop rotation when page hidden
                 if (cameraStream) {
                     cameraStream.getTracks().forEach(track => track.enabled = false);
                 }
@@ -764,6 +936,13 @@
                 }
             }
         });
+
+        // 🔧 FIX: Prevent default touch events on buttons
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('ar-button') || e.target.classList.contains('rotation-button')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
     </script>
 </body>
 </html>
