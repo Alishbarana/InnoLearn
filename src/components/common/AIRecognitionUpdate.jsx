@@ -28,12 +28,12 @@ const AIRecognitionUpdate = ({ recognizedTerm, confidence, capturedImage, resetC
         <Text style={styles.secondaryButtonText}>Take Another</Text>
       </TouchableOpacity>
 
-      {/* Add AR Viewer Button */}
+      {/* Simple AR Viewer Button */}
       <TouchableOpacity
         style={styles.arViewerButton}
         onPress={() => {
           if (recognizedTerm) {
-            navigation.navigate("ARViewer", {
+            navigation.navigate("SimpleAR", {
               recognizedTerm: recognizedTerm,
               confidence: confidence,
               imageUri: capturedImage,
@@ -49,7 +49,6 @@ const AIRecognitionUpdate = ({ recognizedTerm, confidence, capturedImage, resetC
       <TouchableOpacity
         style={styles.primaryButton}
         onPress={() => {
-          // Navigate to the content detail page with the recognized term
           if (recognizedTerm) {
             navigation.navigate("ContentDetail", {
               title: displayTerms[recognizedTerm],
@@ -76,12 +75,12 @@ const AIRecognitionUpdate = ({ recognizedTerm, confidence, capturedImage, resetC
 
 const styles = StyleSheet.create({
   actionButtonsContainer: {
-    flexDirection: "column", // Change to column to accommodate 3 buttons
+    flexDirection: "column",
     width: "100%",
     marginTop: hp(2),
   },
   arViewerButton: {
-    backgroundColor: Colors.ternary,
+    backgroundColor: "#FF6B35", // Orange color for AR
     paddingVertical: hp(1.5),
     paddingHorizontal: wp(4),
     borderRadius: wp(3),
@@ -101,7 +100,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: wp(2),
   },
-  // Update existing button styles to work with column layout
   primaryButton: {
     backgroundColor: Colors.primary,
     paddingVertical: hp(1.5),
@@ -124,7 +122,7 @@ const styles = StyleSheet.create({
     marginLeft: wp(2),
   },
   secondaryButton: {
-    backgroundColor: Colors.quartery,
+    backgroundColor: "#F5F5F5",
     paddingVertical: hp(1.5),
     paddingHorizontal: wp(4),
     borderRadius: wp(3),

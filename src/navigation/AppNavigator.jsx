@@ -11,6 +11,7 @@ import ProgressScreen from "../screens/Main/ProgressScreen"
 import ContentDetailScreen from "../screens/Main/ContentDetailScreen"
 import AIRecognitionScreen from "../screens/AI/AIRecognitionScreen"
 import ARViewerScreen from "../screens/AR/ARViewerScreen"
+import SimpleARScreen from "../screens/AR/SimpleARScreen"
 
 const Stack = createStackNavigator()
 
@@ -29,6 +30,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Progress" component={ProgressScreen} />
         <Stack.Screen name="ContentDetail" component={ContentDetailScreen} />
         <Stack.Screen name="ARViewer" component={ARViewerScreen} />
+        <Stack.Screen name="SimpleAR" component={SimpleARScreen} />
         <Stack.Screen name="AIRecognition" component={AIRecognitionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
