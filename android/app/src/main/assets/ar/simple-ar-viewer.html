@@ -1,18 +1,13 @@
-
-
-
-
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple AR Viewer</title>
+    <title>Stable AR Viewer</title>
     
     <!-- Three.js for 3D rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     
     <style>
         * {
@@ -82,15 +77,31 @@
             opacity: 0.8;
         }
         
-        .ar-controls {
+        /* Horizontal scrollable bottom controls */
+        .ar-controls-container {
             position: fixed;
-            bottom: 30px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: space-around;
-            pointer-events: auto;
+            bottom: 20px;
+            left: 0;
+            right: 0;
             z-index: 4;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .ar-controls {
+            display: flex;
+            gap: 8px;
+            padding: 0 20px;
+            overflow-x: auto;
+            pointer-events: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            max-width: 100%;
+        }
+        
+        .ar-controls::-webkit-scrollbar {
+            display: none;
         }
         
         .ar-button {
@@ -107,7 +118,7 @@
             align-items: center;
             gap: 4px;
             min-width: 60px;
-            /* 🔧 FIX: Prevent button from triggering camera events */
+            flex-shrink: 0;
             touch-action: manipulation;
             user-select: none;
         }
@@ -120,11 +131,58 @@
             transform: scale(0.95);
         }
         
-        /* 🔧 NEW: Rotation controls */
+        /* Horizontal game-style rotation controls */
         .rotation-controls {
             position: fixed;
-            right: 20px;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 4;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .rotation-button {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8));
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+            backdrop-filter: blur(15px);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .rotation-button:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .rotation-button:active {
+            transform: scale(0.95);
+        }
+        
+        /* AR Movement Controls */
+        .ar-movement-controls {
+            position: fixed;
             top: 50%;
+            right: 20px;
             transform: translateY(-50%);
             display: flex;
             flex-direction: column;
@@ -133,13 +191,13 @@
             z-index: 4;
         }
         
-        .rotation-button {
+        .movement-button {
             background: rgba(0, 0, 0, 0.8);
             color: white;
-            border: none;
-            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px;
             border-radius: 50%;
-            font-size: 18px;
+            font-size: 14px;
             cursor: pointer;
             backdrop-filter: blur(10px);
             width: 50px;
@@ -149,16 +207,16 @@
             justify-content: center;
             touch-action: manipulation;
             user-select: none;
+            transition: all 0.3s ease;
         }
         
-        .rotation-button:active {
-            transform: scale(0.9);
-            background: rgba(0, 0, 0, 1);
+        .movement-button:hover {
+            background: rgba(102, 126, 234, 0.8);
         }
         
         .ar-instructions {
             position: fixed;
-            bottom: 120px;
+            bottom: 180px;
             left: 20px;
             right: 20px;
             background: rgba(0, 0, 0, 0.7);
@@ -208,6 +266,164 @@
         .hidden {
             display: none;
         }
+
+        /* Model Information Overlay */
+        .model-info-panel {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 280px;
+            max-height: 50vh;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8));
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+            z-index: 4;
+            overflow-y: auto;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .model-info-panel.hidden {
+            transform: translateY(-50%) translateX(-320px);
+            opacity: 0;
+        }
+
+        .info-section {
+            margin-bottom: 15px;
+        }
+
+        .info-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-content {
+            font-size: 14px;
+            line-height: 1.4;
+            opacity: 0.9;
+        }
+
+        .hotspot-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .hotspot-item {
+            background: rgba(255, 255, 255, 0.1);
+            margin: 5px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hotspot-item:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: translateX(5px);
+        }
+
+        /* Enhanced Progress Bar */
+        .progress-container {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            margin-top: 5px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* Touch Gesture Hints */
+        .gesture-hints {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+            z-index: 4;
+            max-width: 200px;
+            transition: opacity 0.5s ease;
+        }
+
+        .gesture-hints.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Enhanced AR Button Styles */
+        .ar-button.enhanced {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .ar-button.enhanced:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* AR Crosshair for pure AR feel */
+        .ar-crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 4;
+            opacity: 0.6;
+        }
+
+        .ar-crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
@@ -219,8 +435,12 @@
     
     <!-- Loading Screen -->
     <div id="loading" class="loading">
-        <div>Loading AR Experience...</div>
-        <div style="margin-top: 10px; font-size: 12px;">Initializing camera and 3D model...</div>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text">Initializing AR experience...</div>
+        </div>
     </div>
     
     <!-- Error Screen -->
@@ -234,54 +454,118 @@
         <!-- Header Info -->
         <div class="ar-header">
             <div class="ar-title" id="model-title">Loading...</div>
-            <div class="ar-subtitle" id="model-subtitle">Model is fixed in space - use rotation controls on right</div>
+            <div class="ar-subtitle" id="model-subtitle">Move around the model with directional controls</div>
         </div>
+        
+        <!-- AR Crosshair for pure AR feel -->
+        <div class="ar-crosshair"></div>
         
         <!-- Instructions -->
         <div id="ar-instructions" class="ar-instructions">
-            Use arrow buttons on right to rotate model smoothly in all directions
+            📱 Use directional buttons to move the model - Size remains constant
         </div>
-        
-        <!-- 🔧 NEW: Smooth Rotation Controls -->
-        <div class="rotation-controls">
-            <button class="rotation-button" onmousedown="startRotation('up')" onmouseup="stopRotation()" ontouchstart="startRotation('up')" ontouchend="stopRotation()">
+
+        <!-- Model Information Panel -->
+        <div class="model-info-panel hidden" id="info-panel">
+            <div class="info-section">
+                <div class="info-title">
+                    <span>📋</span>
+                    <span>Model Overview</span>
+                </div>
+                <div class="info-content" id="overview-content">
+                    Select a model to see detailed information about its structure and functionality.
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">
+                    <span>🔧</span>
+                    <span>Key Components</span>
+                </div>
+                <ul class="hotspot-list" id="components-list">
+                    <li class="hotspot-item">Loading components...</li>
+                </ul>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">
+                    <span>⚡</span>
+                    <span>Performance</span>
+                </div>
+                <div class="info-content" id="performance-content">
+                    Optimized for smooth AR experience
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch Gesture Hints -->
+        <div class="gesture-hints" id="gesture-hints">
+            <div><strong>AR Controls:</strong></div>
+            <div>• Use directional buttons to move</div>
+            <div>• Drag to manually rotate</div>
+            <div>• Double tap to reset</div>
+        </div>
+
+        <!-- AR Movement Controls -->
+        <div class="ar-movement-controls">
+            <button class="movement-button" onmousedown="moveModel('up')" onmouseup="stopModelMovement()" ontouchstart="moveModel('up')" ontouchend="stopModelMovement()">
                 ⬆️
             </button>
-            <div style="display: flex; gap: 10px;">
-                <button class="rotation-button" onmousedown="startRotation('left')" onmouseup="stopRotation()" ontouchstart="startRotation('left')" ontouchend="stopRotation()">
-                    ⬅️
-                </button>
-                <button class="rotation-button" onmousedown="startRotation('right')" onmouseup="stopRotation()" ontouchstart="startRotation('right')" ontouchend="stopRotation()">
-                    ➡️
-                </button>
-            </div>
-            <button class="rotation-button" onmousedown="startRotation('down')" onmouseup="stopRotation()" ontouchstart="startRotation('down')" ontouchend="stopRotation()">
+            <button class="movement-button" onmousedown="moveModel('left')" onmouseup="stopModelMovement()" ontouchstart="moveModel('left')" ontouchend="stopModelMovement()">
+                ⬅️
+            </button>
+            <button class="movement-button" onmousedown="moveModel('right')" onmouseup="stopModelMovement()" ontouchstart="moveModel('right')" ontouchend="stopModelMovement()">
+                ➡️
+            </button>
+            <button class="movement-button" onmousedown="moveModel('down')" onmouseup="stopModelMovement()" ontouchstart="moveModel('down')" ontouchend="stopModelMovement()">
                 ⬇️
             </button>
         </div>
         
-        <!-- Main Controls -->
-        <div class="ar-controls">
-            <button class="ar-button" onclick="resetModel()" type="button">
-                <span>🔄</span>
-                <span>Reset</span>
+        <!-- Horizontal Game-style Rotation Controls -->
+        <div class="rotation-controls">
+            <button class="rotation-button" onmousedown="startRotation('left')" onmouseup="stopRotation()" ontouchstart="startRotation('left')" ontouchend="stopRotation()">
+                ↺
             </button>
-            <button class="ar-button" onclick="toggleAnimation()" type="button">
-                <span id="play-icon">⏸️</span>
-                <span id="play-text">Pause</span>
+            <button class="rotation-button" onmousedown="startRotation('up')" onmouseup="stopRotation()" ontouchstart="startRotation('up')" ontouchend="stopRotation()">
+                ⬆️
             </button>
-            <button class="ar-button" onclick="randomPosition()" type="button">
-                <span>🎲</span>
-                <span>Random</span>
+            <button class="rotation-button" onmousedown="startRotation('down')" onmouseup="stopRotation()" ontouchstart="startRotation('down')" ontouchend="stopRotation()">
+                ⬇️
             </button>
-            <button class="ar-button" onclick="changeSize()" type="button">
-                <span id="size-icon">📏</span>
-                <span id="size-text">Size</span>
+            <button class="rotation-button" onmousedown="startRotation('right')" onmouseup="stopRotation()" ontouchstart="startRotation('right')" ontouchend="stopRotation()">
+                ↻
             </button>
-            <button class="ar-button" onclick="closeAR()" type="button">
-                <span>❌</span>
-                <span>Close</span>
-            </button>
+        </div>
+        
+        <!-- Horizontal Scrollable Bottom Controls -->
+        <div class="ar-controls-container">
+            <div class="ar-controls">
+                <button class="ar-button enhanced" onclick="resetView()" type="button">
+                    <span>🔄</span>
+                    <span>Reset</span>
+                </button>
+                <button class="ar-button enhanced" onclick="moveNear()" type="button">
+                    <span>🔍</span>
+                    <span>Near</span>
+                </button>
+                <button class="ar-button enhanced" onclick="moveFar()" type="button">
+                    <span>🔭</span>
+                    <span>Far</span>
+                </button>
+                <button class="ar-button enhanced" onclick="toggleInfoPanel()" type="button">
+                    <span>📋</span>
+                    <span>Info</span>
+                </button>
+                <button class="ar-button enhanced" onclick="captureARScreenshot()" type="button">
+                    <span>📸</span>
+                    <span>Capture</span>
+                </button>
+                <button class="ar-button enhanced" onclick="closeAR()" type="button">
+                    <span>❌</span>
+                    <span>Close</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -293,142 +577,170 @@
         let cameraStream = null;
         let isAutoRotating = false;
         
-        // 🔧 NEW: Smooth rotation variables
+        // Rotation variables
         let rotationInterval = null;
         let currentRotationDirection = null;
-        const ROTATION_SPEED = 0.05; // Smooth rotation speed
+        const ROTATION_SPEED = 0.05;
+
+        // Model movement variables
+        let modelMovementInterval = null;
+        let currentModelMovement = null;
+        const MODEL_MOVEMENT_SPEED = 0.2;
+
+        // Touch gesture variables
+        let touchStartDistance = 0;
+        let touchStartTime = 0;
+        let lastTouchTime = 0;
+        let touchCount = 0;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        // Model position tracking
+        let modelPosition = { x: 0, y: 0, z: -15 };
         
-        // 🎯 MAIN CONFIGURATION - CHANGE THESE VALUES FOR YOUR DESIRED OUTPUT
-        const AR_CONFIG = {
-            // Model positioning (change these to adjust where model appears)
-            MODEL_DISTANCE: -1.5,     // How far from camera (negative = in front)
-            MODEL_HEIGHT: 0,          // Height offset (0 = center, positive = up)
-            MODEL_SIDE: 0,            // Side offset (0 = center, positive = right)
-            
-            // Model sizing
-            INITIAL_SCALE: 1.0,       // Starting size (1.0 = normal, 0.5 = half, 2.0 = double)
-            
-            // Camera settings
-            CAMERA_FOV: 75,           // Field of view (75 = normal, 90 = wider, 60 = narrower)
-            
-            // Auto rotation
-            AUTO_ROTATE: false,       // true = model rotates automatically, false = manual only
-            ROTATION_SPEED: 0.01      // Speed of auto rotation (if enabled)
-        };
-        
-        // Model configurations with your actual .glb files
-        const MODEL_CONFIGS = {
+        // Enhanced model data with detailed information
+        const ENHANCED_MODEL_DATA = {
             array: {
-                title: "Array Data Structure",
-                subtitle: "Linear collection of elements with indexed access",
-                model: "file:///android_asset/models/array.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Arrays are fundamental linear data structures that store elements in contiguous memory locations. They provide O(1) random access through indexing and are the building blocks for many other data structures.",
+                components: ["Index-based Access", "Contiguous Memory Layout", "Fixed Size Allocation", "Homogeneous Elements", "Cache-Friendly Design"],
+                performance: "Access: O(1), Search: O(n), Insert/Delete: O(n)",
+                useCases: "Database records, image processing, mathematical computations, buffer implementations"
             },
             binary_tree: {
-                title: "Binary Tree",
-                subtitle: "Hierarchical structure with parent-child relationships",
-                model: "file:///android_asset/models/binary_tree.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Binary trees are hierarchical data structures where each node has at most two children. They form the foundation for efficient searching, sorting, and hierarchical data organization.",
+                components: ["Root Node", "Parent-Child Relationships", "Left/Right Subtrees", "Leaf Nodes", "Tree Traversal Methods"],
+                performance: "Search: O(log n), Insert: O(log n), Delete: O(log n)",
+                useCases: "File systems, expression parsing, decision trees, database indexing"
             },
             linked_list: {
-                title: "Linked List",
-                subtitle: "Sequential nodes connected via pointers",
-                model: "file:///android_asset/models/linked_list.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Linked lists are dynamic linear data structures where elements (nodes) are connected through pointers. They allow efficient insertion and deletion at any position.",
+                components: ["Node Structure", "Pointer References", "Head/Tail Pointers", "Dynamic Memory", "Sequential Access"],
+                performance: "Access: O(n), Search: O(n), Insert: O(1), Delete: O(1)",
+                useCases: "Dynamic memory allocation, undo functionality, music playlists, browser history"
             },
             stack: {
-                title: "Stack (LIFO)",
-                subtitle: "Last In First Out data structure",
-                model: "file:///android_asset/models/stack.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Stacks follow the Last-In-First-Out (LIFO) principle. Elements are added and removed from the same end, making them perfect for managing function calls and temporary data.",
+                components: ["Top Pointer", "LIFO Operations", "Push/Pop Methods", "Stack Frame", "Overflow Protection"],
+                performance: "Push: O(1), Pop: O(1), Peek: O(1), Search: O(n)",
+                useCases: "Function call management, expression evaluation, undo operations, browser back button"
             },
             queue: {
-                title: "Queue (FIFO)",
-                subtitle: "First In First Out data structure",
-                model: "file:///android_asset/models/queue.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Queues implement the First-In-First-Out (FIFO) principle. Elements are added at the rear and removed from the front, ideal for scheduling and buffering.",
+                components: ["Front/Rear Pointers", "FIFO Operations", "Enqueue/Dequeue", "Circular Implementation", "Buffer Management"],
+                performance: "Enqueue: O(1), Dequeue: O(1), Front: O(1), Search: O(n)",
+                useCases: "Task scheduling, print queues, breadth-first search, CPU scheduling"
             },
             merge_sort: {
-                title: "Merge Sort Algorithm",
-                subtitle: "Divide and conquer sorting technique",
-                model: "file:///android_asset/models/merge_sort.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Merge Sort is a divide-and-conquer algorithm that recursively divides the array into halves, sorts them, and merges them back together in sorted order.",
+                components: ["Divide Phase", "Conquer Phase", "Merge Operation", "Recursive Structure", "Stable Sorting"],
+                performance: "Time: O(n log n), Space: O(n), Stable: Yes",
+                useCases: "Large dataset sorting, external sorting, stable sorting requirements, parallel processing"
             },
             osi_model: {
-                title: "OSI Model",
-                subtitle: "7-layer network communication framework",
-                model: "file:///android_asset/models/osi_model.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "The OSI (Open Systems Interconnection) model is a conceptual framework that standardizes network communication into seven distinct layers.",
+                components: ["Physical Layer", "Data Link Layer", "Network Layer", "Transport Layer", "Session Layer", "Presentation Layer", "Application Layer"],
+                performance: "Standardized communication, protocol independence, modular design",
+                useCases: "Network troubleshooting, protocol development, network education, system design"
             },
             client_server: {
-                title: "Client-Server Architecture",
-                subtitle: "Distributed computing model",
-                model: "file:///android_asset/models/client_server.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Client-Server architecture is a distributed computing model where clients request services from centralized servers, enabling scalable and manageable systems.",
+                components: ["Client Applications", "Server Infrastructure", "Request/Response Cycle", "Load Balancing", "Database Integration"],
+                performance: "Scalable, centralized management, resource sharing, fault tolerance",
+                useCases: "Web applications, database systems, email services, file sharing, enterprise applications"
             },
             firewall: {
-                title: "Network Firewall",
-                subtitle: "Security barrier for network traffic",
-                model: "file:///android_asset/models/firewall.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Firewalls are network security systems that monitor and control incoming and outgoing traffic based on predetermined security rules and policies.",
+                components: ["Packet Filtering", "Stateful Inspection", "Application Gateway", "Rule Engine", "Logging System"],
+                performance: "Real-time filtering, high throughput, minimal latency impact",
+                useCases: "Network perimeter security, internal segmentation, malware protection, compliance enforcement"
             },
             router: {
-                title: "Network Router",
-                subtitle: "Data packet forwarding device",
-                model: "file:///android_asset/models/router.glb",
-                scale: AR_CONFIG.INITIAL_SCALE,
-                position: { 
-                    x: AR_CONFIG.MODEL_SIDE, 
-                    y: AR_CONFIG.MODEL_HEIGHT, 
-                    z: AR_CONFIG.MODEL_DISTANCE 
-                }
+                overview: "Routers are networking devices that forward data packets between computer networks, determining the best path for data transmission.",
+                components: ["Routing Table", "Packet Forwarding", "Protocol Support", "Interface Management", "Quality of Service"],
+                performance: "High-speed packet processing, dynamic routing, load balancing",
+                useCases: "Internet connectivity, network segmentation, traffic management, VPN connections"
             }
         };
+        
+        const AR_CONFIG = {
+            // Initial model position - centered and far enough to be fully visible
+            INITIAL_MODEL_POSITION: { x: 0, y: 0, z: -90},
+            
+            // Camera settings
+            CAMERA_POSITION: { x: 0, y: 0, z: 0 },
+            CAMERA_FOV: 75,
+            
+            // Model sizing - fixed size regardless of position
+            INITIAL_SCALE: 3.5,
+            
+            // Auto rotation
+            AUTO_ROTATE: false,
+            ROTATION_SPEED: 0.01
+        };
+        
+        // Model configurations
+        const MODEL_CONFIGS = {
+    array: {
+        title: "Array Data Structure",
+        subtitle: "Linear collection of elements with indexed access",
+        model: "file:///android_asset/models/array.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    binary_tree: {
+        title: "Binary Tree",
+        subtitle: "Hierarchical structure with parent-child relationships",
+        model: "file:///android_asset/models/binary_tree.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    linked_list: {
+        title: "Linked List",
+        subtitle: "Sequential nodes connected via pointers",
+        model: "file:///android_asset/models/linked_list.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    stack: {
+        title: "Stack (LIFO)",
+        subtitle: "Last In First Out data structure",
+        model: "file:///android_asset/models/stack.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    queue: {
+        title: "Queue (FIFO)",
+        subtitle: "First In First Out data structure",
+        model: "file:///android_asset/models/queue.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    merge_sort: {
+        title: "Merge Sort Algorithm",
+        subtitle: "Divide and conquer sorting technique",
+        model: "file:///android_asset/models/merge_sort.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    osi_model: {
+        title: "OSI Model",
+        subtitle: "7-layer network communication framework",
+        model: "file:///android_asset/models/osi_model.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    client_server: {
+        title: "Client-Server Architecture",
+        subtitle: "Distributed computing model",
+        model: "file:///android_asset/models/client_server.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    firewall: {
+        title: "Network Firewall",
+        subtitle: "Security barrier for network traffic",
+        model: "file:///android_asset/models/firewall.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    },
+    router: {
+        title: "Network Router",
+        subtitle: "Data packet forwarding device",
+        model: "file:///android_asset/models/router.glb",
+        scale: AR_CONFIG.INITIAL_SCALE
+    }
+};
         
         // Initialize AR
         document.addEventListener('DOMContentLoaded', function() {
@@ -440,7 +752,6 @@
                 // Get model name from URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const modelName = urlParams.get('model') || 'array';
-                const confidence = urlParams.get('confidence') || '95';
                 
                 console.log('Initializing AR with model:', modelName);
                 
@@ -449,14 +760,22 @@
                 
                 // Update UI
                 updateUI();
+
+                // Initialize enhanced features
+                initTouchGestures();
+                updateModelInfo();
+                hideGestureHints();
                 
                 // Initialize camera
+                updateProgress(10, 'Initializing camera...');
                 await initCamera();
                 
                 // Initialize 3D scene
+                updateProgress(30, 'Setting up AR scene...');
                 initThreeJS();
                 
-                // Load 3D model from assets
+                // Load 3D model
+                updateProgress(60, 'Loading 3D model...');
                 await loadModel(modelName);
                 
                 // Start render loop
@@ -465,30 +784,328 @@
                 // Hide loading screen
                 document.getElementById('loading').classList.add('hidden');
                 
-                // Hide instructions after 5 seconds
+                // Hide instructions after 10 seconds
                 setTimeout(() => {
                     document.getElementById('ar-instructions').classList.add('hidden');
-                }, 5000);
+                }, 10000);
+
+                updateProgress(90, 'Applying AR enhancements...');
+                updateProgress(100, 'AR experience ready!');
                 
             } catch (error) {
                 console.error('AR initialization failed:', error);
                 showError('Failed to initialize AR experience');
             }
         }
+
+        // Enhanced progress tracking
+        function updateProgress(percent, message = '') {
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+            
+            if (progressFill) {
+                progressFill.style.width = percent + '%';
+            }
+            
+            if (progressText && message) {
+                progressText.textContent = message;
+            }
+        }
+
+        // Enhanced touch gesture handling
+        function initTouchGestures() {
+            const canvas = document.getElementById('ar-canvas');
+            
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            
+            // Mouse events for desktop testing
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            
+            console.log('✅ AR touch gestures initialized');
+        }
+
+        function handleTouchStart(event) {
+            event.preventDefault();
+            touchCount = event.touches.length;
+            touchStartTime = Date.now();
+            
+            if (touchCount === 1) {
+                lastTouchX = event.touches[0].clientX;
+                lastTouchY = event.touches[0].clientY;
+            }
+            
+            if (touchCount === 2) {
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+            }
+        }
+
+        function handleTouchMove(event) {
+            event.preventDefault();
+            
+            if (touchCount === 1 && event.touches.length === 1) {
+                // Single finger drag - rotate model
+                const deltaX = event.touches[0].clientX - lastTouchX;
+                const deltaY = event.touches[0].clientY - lastTouchY;
+                
+                const sensitivity = 0.005;
+                if (model) {
+                    model.rotation.y += deltaX * sensitivity;
+                    model.rotation.x += deltaY * sensitivity;
+                }
+                
+                lastTouchX = event.touches[0].clientX;
+                lastTouchY = event.touches[0].clientY;
+            }
+            
+            if (touchCount === 2 && event.touches.length === 2) {
+                // Two finger pinch - zoom in/out
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                const scale = currentDistance / touchStartDistance;
+                
+                if (scale > 1.1) {
+                    moveNear();
+                    touchStartDistance = currentDistance;
+                } else if (scale < 0.9) {
+                    moveFar();
+                    touchStartDistance = currentDistance;
+                }
+            }
+        }
+
+        function handleTouchEnd(event) {
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Double tap detection
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastTouchTime;
+            
+            if (timeDiff < 300 && timeDiff > 0 && touchDuration < 200) {
+                resetView();
+                event.preventDefault();
+            }
+            
+            // Long press detection (800ms)
+            if (touchDuration > 800 && touchCount === 1) {
+                toggleInfoPanel();
+            }
+            
+            lastTouchTime = currentTime;
+            touchCount = 0;
+        }
+
+        // Mouse events for desktop
+        let isMouseDown = false;
+
+        function handleMouseDown(event) {
+            isMouseDown = true;
+            lastTouchX = event.clientX;
+            lastTouchY = event.clientY;
+        }
+
+        function handleMouseMove(event) {
+            if (!isMouseDown) return;
+            
+            const deltaX = event.clientX - lastTouchX;
+            const deltaY = event.clientY - lastTouchY;
+            
+            const sensitivity = 0.005;
+            if (model) {
+                model.rotation.y += deltaX * sensitivity;
+                model.rotation.x += deltaY * sensitivity;
+            }
+            
+            lastTouchX = event.clientX;
+            lastTouchY = event.clientY;
+        }
+
+        function handleMouseUp(event) {
+            isMouseDown = false;
+        }
+
+        // Model movement functions - FIXED SIZE, ONLY POSITION CHANGES
+        function moveModel(direction) {
+            stopModelMovement();
+            currentModelMovement = direction;
+            
+            modelMovementInterval = setInterval(() => {
+                if (model) {
+                    const speed = MODEL_MOVEMENT_SPEED;
+                    
+                    switch(direction) {
+                        case 'up':
+                            modelPosition.y += speed;
+                            break;
+                        case 'down':
+                            modelPosition.y -= speed;
+                            break;
+                        case 'left':
+                            modelPosition.x -= speed;
+                            break;
+                        case 'right':
+                            modelPosition.x += speed;
+                            break;
+                    }
+                    
+                    // Update model position WITHOUT changing scale
+                    model.position.set(
+                        modelPosition.x,
+                        modelPosition.y,
+                        modelPosition.z
+                    );
+                }
+            }, 16);
+        }
+
+        function stopModelMovement() {
+            if (modelMovementInterval) {
+                clearInterval(modelMovementInterval);
+                modelMovementInterval = null;
+                currentModelMovement = null;
+            }
+        }
+
+        // Enhanced model information
+        function updateModelInfo() {
+            const modelName = Object.keys(MODEL_CONFIGS).find(key => 
+                MODEL_CONFIGS[key] === modelData
+            );
+            
+            const enhancedData = ENHANCED_MODEL_DATA[modelName];
+            if (!enhancedData) return;
+            
+            // Update overview
+            const overviewContent = document.getElementById('overview-content');
+            if (overviewContent) {
+                overviewContent.textContent = enhancedData.overview;
+            }
+            
+            // Update components list
+            const componentsList = document.getElementById('components-list');
+            if (componentsList) {
+                componentsList.innerHTML = '';
+                enhancedData.components.forEach((component, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'hotspot-item';
+                    li.textContent = component;
+                    li.onclick = () => highlightComponent(index);
+                    componentsList.appendChild(li);
+                });
+            }
+            
+            // Update performance info
+            const performanceContent = document.getElementById('performance-content');
+            if (performanceContent) {
+                performanceContent.innerHTML = `
+                    <div><strong>Complexity:</strong> ${enhancedData.performance}</div>
+                    <div><strong>Use Cases:</strong> ${enhancedData.useCases}</div>
+                `;
+            }
+        }
+
+        function highlightComponent(index) {
+            // Add visual highlight effect to model component
+            if (model && model.children[index]) {
+                const component = model.children[index];
+                
+                // Create highlight effect
+                const originalMaterial = component.material;
+                const highlightMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x667eea,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                
+                component.material = highlightMaterial;
+                
+                setTimeout(() => {
+                    component.material = originalMaterial;
+                }, 2000);
+            }
+        }
+
+        // Enhanced screenshot with AR background
+        function captureARScreenshot() {
+            try {
+                const video = document.getElementById('camera-feed');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                // Draw camera feed as background
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Draw 3D scene on top
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(renderer.domElement, 0, 0);
+                
+                // Create download link
+                const link = document.createElement('a');
+                const filename = `AR_${modelData.title.replace(/\s+/g, '_')}_${Date.now()}.png`;
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // Visual feedback only
+                const button = event.target.closest('.ar-button');
+                const originalText = button.querySelector('span:last-child').textContent;
+                button.querySelector('span:last-child').textContent = 'Saved!';
+                button.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                
+                setTimeout(() => {
+                    button.querySelector('span:last-child').textContent = originalText;
+                    button.style.background = '';
+                }, 2000);
+                
+                console.log('✅ AR screenshot saved:', filename);
+            } catch (error) {
+                console.error('Screenshot error:', error);
+            }
+        }
+
+        // Toggle info panel
+        function toggleInfoPanel() {
+            const panel = document.getElementById('info-panel');
+            panel.classList.toggle('hidden');
+        }
+
+        // Hide gesture hints after delay
+        function hideGestureHints() {
+            setTimeout(() => {
+                const hints = document.getElementById('gesture-hints');
+                if (hints) {
+                    hints.classList.add('hidden');
+                }
+            }, 15000); // Hide after 15 seconds
+        }
         
         async function initCamera() {
             try {
                 const video = document.getElementById('camera-feed');
                 
-                // 🔧 FIX: Better camera initialization to prevent permission errors
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error('Camera not supported');
                 }
                 
-                // Request camera access
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'environment', // Use back camera
+                        facingMode: 'environment',
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     }
@@ -515,16 +1132,20 @@
             // Scene
             scene = new THREE.Scene();
             
-            // 🎯 CAMERA SETUP - Fixed position for true AR
+            // Camera setup - fixed position
             camera = new THREE.PerspectiveCamera(
                 AR_CONFIG.CAMERA_FOV, 
                 window.innerWidth / window.innerHeight, 
                 0.1, 
                 1000
             );
-            // Camera stays at origin (0,0,0) - like real AR
-            camera.position.set(0, 0, 0);
-            camera.lookAt(0, 0, -1); // Look forward
+            
+            // Set camera position
+            camera.position.set(
+                AR_CONFIG.CAMERA_POSITION.x,
+                AR_CONFIG.CAMERA_POSITION.y,
+                AR_CONFIG.CAMERA_POSITION.z
+            );
             
             // Renderer
             renderer = new THREE.WebGLRenderer({ 
@@ -533,21 +1154,34 @@
                 antialias: true 
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0); // Transparent background
+            renderer.setClearColor(0x000000, 0);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             
-            // 🎯 LIGHTING SETUP - Good visibility for AR
+            // Enhanced lighting
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-            directionalLight.position.set(2, 2, 2);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(10, 10, 10);
             directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
             scene.add(directionalLight);
+            
+            // Additional lights for better visibility
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.6);
+            light2.position.set(-10, 5, -10);
+            scene.add(light2);
+            
+            const light3 = new THREE.DirectionalLight(0xffffff, 0.5);
+            light3.position.set(0, -10, 0);
+            scene.add(light3);
             
             // Handle window resize
             window.addEventListener('resize', onWindowResize);
+            
+            console.log('✅ AR setup complete');
         }
         
         async function loadModel(modelName) {
@@ -561,16 +1195,21 @@
                     (gltf) => {
                         model = gltf.scene;
                         
-                        // 🎯 MODEL POSITIONING - Exactly where you want it
-                        model.scale.setScalar(modelData.scale * currentSize);
+                        // Initialize model position
+                        modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
+                        
+                        // Set model position
                         model.position.set(
-                            modelData.position.x,
-                            modelData.position.y,
-                            modelData.position.z
+                            modelPosition.x,
+                            modelPosition.y,
+                            modelPosition.z
                         );
                         
-                        // 🎯 MODEL ORIENTATION - Face the user directly
-                        model.rotation.set(0, 0, 0); // Face forward
+                        // Set model scale - FIXED SIZE
+                        model.scale.setScalar(modelData.scale * currentSize);
+                        
+                        // Set initial rotation
+                        model.rotation.set(0, 0, 0);
                         
                         // Enable shadows
                         model.traverse((child) => {
@@ -583,8 +1222,7 @@
                         // Add to scene
                         scene.add(model);
                         
-                        console.log('Model loaded and positioned at:', model.position);
-                        console.log('Model scale:', model.scale);
+                        console.log('✅ Model loaded at position:', model.position);
                         
                         // Send message to React Native
                         if (window.ReactNativeWebView) {
@@ -601,9 +1239,6 @@
                     },
                     (error) => {
                         console.error('Model loading failed:', error);
-                        
-                        // Fallback to simple geometry if model fails to load
-                        console.log('Creating fallback geometry for:', modelName);
                         createFallbackModel(modelName);
                         resolve();
                     }
@@ -612,74 +1247,62 @@
         }
         
         function createFallbackModel(modelName) {
-            // Create simple geometric representations as fallback
             let geometry, material;
             
             switch(modelName) {
                 case 'array':
                     const group = new THREE.Group();
-                    for(let i = 0; i < 5; i++) {
-                        const boxGeometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-                        const boxMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+                    for(let i = 0; i < 7; i++) {
+                        const boxGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+                        const boxMaterial = new THREE.MeshLambertMaterial({ 
+                            color: new THREE.Color().setHSL(i * 0.15, 0.7, 0.6)
+                        });
                         const box = new THREE.Mesh(boxGeometry, boxMaterial);
-                        box.position.x = (i - 2) * 0.25;
+                        box.position.x = (i - 3) * 0.5;
                         box.castShadow = true;
                         group.add(box);
                     }
                     model = group;
                     break;
                     
-                case 'stack':
-                    const stackGroup = new THREE.Group();
-                    for(let i = 0; i < 4; i++) {
-                        const boxGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.3);
-                        const boxMaterial = new THREE.MeshLambertMaterial({ color: 0xFF9800 });
-                        const box = new THREE.Mesh(boxGeometry, boxMaterial);
-                        box.position.y = i * 0.12;
-                        box.castShadow = true;
-                        stackGroup.add(box);
+                case 'osi_model':
+                    const osiGroup = new THREE.Group();
+                    const layers = ['Physical', 'Data Link', 'Network', 'Transport', 'Session', 'Presentation', 'Application'];
+                    for(let i = 0; i < 7; i++) {
+                        const layerGeometry = new THREE.BoxGeometry(1, 0.2, 0.8);
+                        const layerMaterial = new THREE.MeshLambertMaterial({ 
+                            color: new THREE.Color().setHSL(i * 0.14, 0.8, 0.6)
+                        });
+                        const layer = new THREE.Mesh(layerGeometry, layerMaterial);
+                        layer.position.y = i * 0.25 - 0.75;
+                        layer.castShadow = true;
+                        osiGroup.add(layer);
                     }
-                    model = stackGroup;
-                    break;
-                    
-                case 'binary_tree':
-                    const treeGroup = new THREE.Group();
-                    const rootGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-                    const rootMaterial = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
-                    
-                    // Root
-                    const root = new THREE.Mesh(rootGeometry, rootMaterial);
-                    root.position.y = 0.2;
-                    treeGroup.add(root);
-                    
-                    // Left child
-                    const leftChild = new THREE.Mesh(rootGeometry, rootMaterial);
-                    leftChild.position.set(-0.2, 0, 0);
-                    treeGroup.add(leftChild);
-                    
-                    // Right child
-                    const rightChild = new THREE.Mesh(rootGeometry, rootMaterial);
-                    rightChild.position.set(0.2, 0, 0);
-                    treeGroup.add(rightChild);
-                    
-                    model = treeGroup;
+                    model = osiGroup;
                     break;
                     
                 default:
-                    geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                    geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
                     material = new THREE.MeshLambertMaterial({ color: 0x9C27B0 });
                     model = new THREE.Mesh(geometry, material);
                     break;
             }
             
-            // 🎯 FALLBACK MODEL POSITIONING
-            model.scale.setScalar(modelData.scale * currentSize);
+            // Initialize model position
+            modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
+            
+            // Set model position
             model.position.set(
-                modelData.position.x,
-                modelData.position.y,
-                modelData.position.z
+                modelPosition.x,
+                modelPosition.y,
+                modelPosition.z
             );
-            model.rotation.set(0, 0, 0); // Face forward
+            
+            // Set model scale - FIXED SIZE
+            model.scale.setScalar(modelData.scale * currentSize);
+            
+            // Set initial rotation
+            model.rotation.set(0, 0, 0);
             
             // Enable shadows
             model.traverse((child) => {
@@ -689,43 +1312,39 @@
                 }
             });
             
-            // Add to scene
             scene.add(model);
-            
-            console.log('Fallback model created and positioned:', modelName);
+            console.log('✅ Fallback model created at position:', model.position);
         }
         
         function updateUI() {
             document.getElementById('model-title').textContent = modelData.title;
             document.getElementById('model-subtitle').textContent = modelData.subtitle;
+            updateModelInfo();
         }
-
-        // 🔧 NEW: Smooth rotation functions
+        
+        // Rotation functions - Rotate the MODEL
         function startRotation(direction) {
-            // Stop any existing rotation
             stopRotation();
-            
             currentRotationDirection = direction;
             
-            // Start smooth rotation
             rotationInterval = setInterval(() => {
                 if (model) {
                     switch(direction) {
                         case 'up':
-                            model.rotation.x -= ROTATION_SPEED; // Rotate up
+                            model.rotation.x -= ROTATION_SPEED;
                             break;
                         case 'down':
-                            model.rotation.x += ROTATION_SPEED; // Rotate down
+                            model.rotation.x += ROTATION_SPEED;
                             break;
                         case 'left':
-                            model.rotation.y += ROTATION_SPEED; // Rotate left
+                            model.rotation.y += ROTATION_SPEED;
                             break;
                         case 'right':
-                            model.rotation.y -= ROTATION_SPEED; // Rotate right
+                            model.rotation.y -= ROTATION_SPEED;
                             break;
                     }
                 }
-            }, 16); // ~60fps smooth rotation
+            }, 16);
         }
         
         function stopRotation() {
@@ -735,12 +1354,10 @@
                 currentRotationDirection = null;
             }
         }
-
-        // 🔧 FIX: Improved button functions with error handling
+        
         function changeSize() {
             try {
                 if (model) {
-                    // Cycle through sizes: 0.5x -> 1x -> 1.5x -> 2x -> back to 0.5x
                     if (currentSize <= 0.5) {
                         currentSize = 1;
                     } else if (currentSize <= 1) {
@@ -753,12 +1370,9 @@
                     
                     model.scale.setScalar(modelData.scale * currentSize);
                     
-                    // Update button text
                     const sizeText = document.getElementById('size-text');
                     if (sizeText) {
                         sizeText.textContent = `${currentSize}x`;
-                        
-                        // Reset text after 2 seconds
                         setTimeout(() => {
                             if (sizeText) {
                                 sizeText.textContent = 'Size';
@@ -770,54 +1384,41 @@
                 console.error('Size change error:', error);
             }
         }
-
-        function toggleAnimation() {
-            try {
-                isAutoRotating = !isAutoRotating;
-                const playIcon = document.getElementById('play-icon');
-                const playText = document.getElementById('play-text');
-                
-                if (playIcon && playText) {
-                    if (isAutoRotating) {
-                        playIcon.textContent = '⏸️';
-                        playText.textContent = 'Pause';
-                    } else {
-                        playIcon.textContent = '▶️';
-                        playText.textContent = 'Play';
-                    }
-                }
-            } catch (error) {
-                console.error('Animation toggle error:', error);
-            }
-        }
-
-        function randomPosition() {
+        
+        // Distance controls - FIXED SIZE, ONLY Z POSITION CHANGES
+        function moveNear() {
             try {
                 if (model) {
-                    // Random position in a reasonable range
-                    model.position.x = (Math.random() - 0.5) * 2;
-                    model.position.y = (Math.random() - 0.5) * 1;
-                    model.position.z = -1 - Math.random() * 2;
-                    
-                    // Random rotation
-                    model.rotation.x = Math.random() * Math.PI * 2;
-                    model.rotation.y = Math.random() * Math.PI * 2;
-                    model.rotation.z = Math.random() * Math.PI * 2;
+                    modelPosition.z += 1;
+                    model.position.z = modelPosition.z;
+                    console.log('Model moved closer:', modelPosition.z);
                 }
             } catch (error) {
-                console.error('Random position error:', error);
+                console.error('Move near error:', error);
+            }
+        }
+        
+        function moveFar() {
+            try {
+                if (model) {
+                    modelPosition.z -= 1;
+                    model.position.z = modelPosition.z;
+                    console.log('Model moved farther:', modelPosition.z);
+                }
+            } catch (error) {
+                console.error('Move far error:', error);
             }
         }
         
         function animate() {
             requestAnimationFrame(animate);
             
-            // 🎯 AUTO ROTATION (if enabled)
+            // Auto rotation of the MODEL
             if (model && isAutoRotating) {
                 model.rotation.y += AR_CONFIG.ROTATION_SPEED;
             }
             
-            // 🎯 RENDER - No camera controls, pure AR
+            // Render the scene
             if (renderer && scene && camera) {
                 renderer.render(scene, camera);
             }
@@ -829,20 +1430,21 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        // Control functions
-        function resetModel() {
+        function resetView() {
             try {
                 if (model) {
-                    // 🎯 RESET TO ORIGINAL POSITION
+                    // Reset model rotation
                     model.rotation.set(0, 0, 0);
-                    model.position.set(
-                        modelData.position.x,
-                        modelData.position.y,
-                        modelData.position.z
-                    );
-                    model.scale.setScalar(modelData.scale * currentSize);
                     
-                    console.log('Model reset to position:', model.position);
+                    // Reset model position
+                    modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
+                    model.position.set(
+                        modelPosition.x,
+                        modelPosition.y,
+                        modelPosition.z
+                    );
+                    
+                    console.log('✅ AR view reset');
                 }
             } catch (error) {
                 console.error('Reset error:', error);
@@ -851,15 +1453,11 @@
         
         function closeAR() {
             try {
-                // Stop any rotation
                 stopRotation();
-                
-                // Stop camera stream
+                stopModelMovement();
                 if (cameraStream) {
                     cameraStream.getTracks().forEach(track => track.stop());
                 }
-                
-                // Send message to React Native
                 if (window.ReactNativeWebView) {
                     window.ReactNativeWebView.postMessage(JSON.stringify({
                         type: 'close_ar'
@@ -886,13 +1484,12 @@
         window.addEventListener('message', function(event) {
             try {
                 const data = JSON.parse(event.data);
-                
                 switch(data.type) {
                     case 'change_model':
                         changeModel(data.modelName);
                         break;
                     case 'reset_view':
-                        resetModel();
+                        resetView();
                         break;
                 }
             } catch (error) {
@@ -914,10 +1511,9 @@
             }
         }
         
-        // 🔧 FIX: Better error handling
+        // Error handling
         window.addEventListener('error', function(event) {
             console.error('AR Error:', event.error);
-            // Don't show camera error for general errors
             if (!event.error.message.includes('camera')) {
                 showError('An error occurred in AR view');
             }
@@ -926,7 +1522,8 @@
         // Handle page visibility change
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                stopRotation(); // Stop rotation when page hidden
+                stopRotation();
+                stopModelMovement();
                 if (cameraStream) {
                     cameraStream.getTracks().forEach(track => track.enabled = false);
                 }
@@ -936,10 +1533,12 @@
                 }
             }
         });
-
-        // 🔧 FIX: Prevent default touch events on buttons
+        
+        // Prevent default touch events on buttons
         document.addEventListener('touchstart', function(e) {
-            if (e.target.classList.contains('ar-button') || e.target.classList.contains('rotation-button')) {
+            if (e.target.classList.contains('ar-button') || 
+                e.target.classList.contains('rotation-button') ||
+                e.target.classList.contains('movement-button')) {
                 e.preventDefault();
             }
         }, { passive: false });
