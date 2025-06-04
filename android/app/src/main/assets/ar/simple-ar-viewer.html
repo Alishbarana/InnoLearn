@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stable AR Viewer</title>
+    <title>Real AR Viewer - Constant Size</title>
     
     <!-- Three.js for 3D rendering -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -77,8 +77,8 @@
             opacity: 0.8;
         }
         
-        /* Horizontal scrollable bottom controls */
-        .ar-controls-container {
+        /* Professional Circular Bottom Controls - NO PLATE */
+        .bottom-controls {
             position: fixed;
             bottom: 20px;
             left: 0;
@@ -87,136 +87,172 @@
             pointer-events: none;
             display: flex;
             justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
-        .ar-controls {
+        .bottom-controls.visible {
+            opacity: 1;
+        }
+
+        .controls-scroll {
             display: flex;
-            gap: 8px;
-            padding: 0 20px;
+            gap: 12px;
             overflow-x: auto;
-            pointer-events: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            max-width: 100%;
+            scroll-behavior: smooth;
+            padding: 0 10px;
+            justify-content: center;
         }
-        
-        .ar-controls::-webkit-scrollbar {
+
+        .controls-scroll::-webkit-scrollbar {
             display: none;
         }
-        
-        .ar-button {
-            background: rgba(0, 0, 0, 0.8);
+
+        .control-btn {
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            border: none;
-            padding: 12px 16px;
-            border-radius: 50px;
-            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            font-size: 12px;
             cursor: pointer;
-            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 4px;
-            min-width: 60px;
+            width: 55px;
+            height: 55px;
             flex-shrink: 0;
             touch-action: manipulation;
             user-select: none;
-        }
-        
-        .ar-button:hover {
-            background: rgba(0, 0, 0, 0.9);
-        }
-        
-        .ar-button:active {
-            transform: scale(0.95);
-        }
-        
-        /* Horizontal game-style rotation controls */
-        .rotation-controls {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            transition: all 0.2s ease;
+            border-radius: 50%;
             pointer-events: auto;
-            z-index: 4;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px 20px;
-            border-radius: 25px;
             backdrop-filter: blur(10px);
         }
-        
-        .rotation-button {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8));
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 10px;
-            border-radius: 50%;
-            font-size: 16px;
-            cursor: pointer;
-            backdrop-filter: blur(15px);
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            user-select: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+
+        .control-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
         }
-        
-        .rotation-button:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .rotation-button:active {
+
+        .control-btn:active {
             transform: scale(0.95);
         }
-        
-        /* AR Movement Controls */
-        .ar-movement-controls {
+
+        /* Professional Circular Right Side Panel - NO PLATE */
+        .right-panel {
             position: fixed;
             top: 50%;
             right: 20px;
             transform: translateY(-50%);
+            z-index: 4;
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            pointer-events: auto;
-            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
-        .movement-button {
-            background: rgba(0, 0, 0, 0.8);
+        .right-panel.visible {
+            opacity: 1;
+        }
+
+        .panel-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .panel-btn {
+            background: rgba(0, 0, 0, 0.7);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 12px;
-            border-radius: 50%;
-            font-size: 14px;
+            font-size: 16px;
             cursor: pointer;
-            backdrop-filter: blur(10px);
-            width: 50px;
-            height: 50px;
+            width: 55px;
+            height: 55px;
             display: flex;
             align-items: center;
             justify-content: center;
             touch-action: manipulation;
             user-select: none;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        .panel-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Circular Rotation Controls - NO PLATE */
+        .rotation-controls {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 4;
+            pointer-events: none;
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
-        .movement-button:hover {
-            background: rgba(102, 126, 234, 0.8);
+        .rotation-controls.visible {
+            opacity: 1;
+        }
+
+        .rotation-grid {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rotation-btn {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 55px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            user-select: none;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .rotation-btn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        .rotation-btn:active {
+            transform: scale(0.95);
         }
         
         .ar-instructions {
             position: fixed;
-            bottom: 180px;
+            bottom: 160px;
             left: 20px;
             right: 20px;
             background: rgba(0, 0, 0, 0.7);
@@ -384,21 +420,7 @@
             pointer-events: none;
         }
 
-        /* Enhanced AR Button Styles */
-        .ar-button.enhanced {
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8));
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .ar-button.enhanced:hover {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        /* AR Crosshair for pure AR feel */
+        /* AR Crosshair */
         .ar-crosshair {
             position: fixed;
             top: 50%;
@@ -424,6 +446,58 @@
             background: rgba(255, 255, 255, 0.8);
             border-radius: 50%;
         }
+        
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* Controls toggle button */
+        .controls-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 5;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+        
+        .controls-toggle:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+        
+        .controls-toggle:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
@@ -439,7 +513,7 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="progress-fill"></div>
             </div>
-            <div class="progress-text" id="progress-text">Initializing AR experience...</div>
+            <div class="progress-text" id="progress-text">Initializing Real AR experience...</div>
         </div>
     </div>
     
@@ -449,20 +523,23 @@
         <div style="margin-top: 10px; font-size: 12px;">Please allow camera access for AR</div>
     </div>
     
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+    
     <!-- AR Overlay -->
     <div class="ar-overlay">
         <!-- Header Info -->
         <div class="ar-header">
             <div class="ar-title" id="model-title">Loading...</div>
-            <div class="ar-subtitle" id="model-subtitle">Move around the model with directional controls</div>
+            <div class="ar-subtitle" id="model-subtitle">Real AR - Constant Size Movement</div>
         </div>
         
-        <!-- AR Crosshair for pure AR feel -->
+        <!-- AR Crosshair -->
         <div class="ar-crosshair"></div>
         
         <!-- Instructions -->
         <div id="ar-instructions" class="ar-instructions">
-            📱 Use directional buttons to move the model - Size remains constant
+            📱 Tap the controls button to show/hide AR controls
         </div>
 
         <!-- Model Information Panel -->
@@ -500,73 +577,83 @@
 
         <!-- Touch Gesture Hints -->
         <div class="gesture-hints" id="gesture-hints">
-            <div><strong>AR Controls:</strong></div>
-            <div>• Use directional buttons to move</div>
-            <div>• Drag to manually rotate</div>
+            <div><strong>Real AR Controls:</strong></div>
+            <div>• Model keeps constant size</div>
+            <div>• Moves through real space</div>
+            <div>• Drag to rotate</div>
             <div>• Double tap to reset</div>
         </div>
 
-        <!-- AR Movement Controls -->
-        <div class="ar-movement-controls">
-            <button class="movement-button" onmousedown="moveModel('up')" onmouseup="stopModelMovement()" ontouchstart="moveModel('up')" ontouchend="stopModelMovement()">
-                ⬆️
-            </button>
-            <button class="movement-button" onmousedown="moveModel('left')" onmouseup="stopModelMovement()" ontouchstart="moveModel('left')" ontouchend="stopModelMovement()">
-                ⬅️
-            </button>
-            <button class="movement-button" onmousedown="moveModel('right')" onmouseup="stopModelMovement()" ontouchstart="moveModel('right')" ontouchend="stopModelMovement()">
-                ➡️
-            </button>
-            <button class="movement-button" onmousedown="moveModel('down')" onmouseup="stopModelMovement()" ontouchstart="moveModel('down')" ontouchend="stopModelMovement()">
-                ⬇️
-            </button>
+        <!-- Professional Right Side Panel - NO PLATE -->
+        <div class="right-panel" id="right-panel">
+            <div class="panel-controls">
+                <button class="panel-btn" onmousedown="moveModel('up')" onmouseup="stopModelMovement()" ontouchstart="moveModel('up')" ontouchend="stopModelMovement()">
+                    ⬆️
+                </button>
+                <button class="panel-btn" onmousedown="moveModel('left')" onmouseup="stopModelMovement()" ontouchstart="moveModel('left')" ontouchend="stopModelMovement()">
+                    ⬅️
+                </button>
+                <button class="panel-btn" onmousedown="moveModel('right')" onmouseup="stopModelMovement()" ontouchstart="moveModel('right')" ontouchend="stopModelMovement()">
+                    ➡️
+                </button>
+                <button class="panel-btn" onmousedown="moveModel('down')" onmouseup="stopModelMovement()" ontouchstart="moveModel('down')" ontouchend="stopModelMovement()">
+                    ⬇️
+                </button>
+            </div>
         </div>
         
-        <!-- Horizontal Game-style Rotation Controls -->
-        <div class="rotation-controls">
-            <button class="rotation-button" onmousedown="startRotation('left')" onmouseup="stopRotation()" ontouchstart="startRotation('left')" ontouchend="stopRotation()">
-                ↺
-            </button>
-            <button class="rotation-button" onmousedown="startRotation('up')" onmouseup="stopRotation()" ontouchstart="startRotation('up')" ontouchend="stopRotation()">
-                ⬆️
-            </button>
-            <button class="rotation-button" onmousedown="startRotation('down')" onmouseup="stopRotation()" ontouchstart="startRotation('down')" ontouchend="stopRotation()">
-                ⬇️
-            </button>
-            <button class="rotation-button" onmousedown="startRotation('right')" onmouseup="stopRotation()" ontouchstart="startRotation('right')" ontouchend="stopRotation()">
-                ↻
-            </button>
+        <!-- Professional Rotation Controls - NO PLATE -->
+        <div class="rotation-controls" id="rotation-controls">
+            <div class="rotation-grid">
+                <button class="rotation-btn" onmousedown="startRotation('left')" onmouseup="stopRotation()" ontouchstart="startRotation('left')" ontouchend="stopRotation()">
+                    ↺
+                </button>
+                <button class="rotation-btn" onmousedown="startRotation('up')" onmouseup="stopRotation()" ontouchstart="startRotation('up')" ontouchend="stopRotation()">
+                    ⬆️
+                </button>
+                <button class="rotation-btn" onmousedown="startRotation('down')" onmouseup="stopRotation()" ontouchstart="startRotation('down')" ontouchend="stopRotation()">
+                    ⬇️
+                </button>
+                <button class="rotation-btn" onmousedown="startRotation('right')" onmouseup="stopRotation()" ontouchstart="startRotation('right')" ontouchend="stopRotation()">
+                    ↻
+                </button>
+            </div>
         </div>
         
-        <!-- Horizontal Scrollable Bottom Controls -->
-        <div class="ar-controls-container">
-            <div class="ar-controls">
-                <button class="ar-button enhanced" onclick="resetView()" type="button">
+        <!-- Professional Bottom Control Panel - NO PLATE -->
+        <div class="bottom-controls" id="bottom-controls">
+            <div class="controls-scroll">
+                <button class="control-btn" onclick="resetView()" type="button">
                     <span>🔄</span>
                     <span>Reset</span>
                 </button>
-                <button class="ar-button enhanced" onclick="moveNear()" type="button">
+                <button class="control-btn" onclick="moveNear()" type="button">
                     <span>🔍</span>
                     <span>Near</span>
                 </button>
-                <button class="ar-button enhanced" onclick="moveFar()" type="button">
+                <button class="control-btn" onclick="moveFar()" type="button">
                     <span>🔭</span>
                     <span>Far</span>
                 </button>
-                <button class="ar-button enhanced" onclick="toggleInfoPanel()" type="button">
+                <button class="control-btn" onclick="toggleInfoPanel()" type="button">
                     <span>📋</span>
                     <span>Info</span>
                 </button>
-                <button class="ar-button enhanced" onclick="captureARScreenshot()" type="button">
+                <button class="control-btn" onclick="captureARScreenshot()" type="button">
                     <span>📸</span>
                     <span>Capture</span>
                 </button>
-                <button class="ar-button enhanced" onclick="closeAR()" type="button">
+                <button class="control-btn" onclick="closeAR()" type="button">
                     <span>❌</span>
                     <span>Close</span>
                 </button>
             </div>
         </div>
+        
+        <!-- Controls Toggle Button
+        <button class="controls-toggle" id="controls-toggle" onclick="toggleControls()">
+            🎮
+        </button> -->
     </div>
 
     <script>
@@ -576,6 +663,7 @@
         let modelData = {};
         let cameraStream = null;
         let isAutoRotating = false;
+        let controlsVisible = false;
         
         // Rotation variables
         let rotationInterval = null;
@@ -585,7 +673,7 @@
         // Model movement variables
         let modelMovementInterval = null;
         let currentModelMovement = null;
-        const MODEL_MOVEMENT_SPEED = 0.2;
+        const MODEL_MOVEMENT_SPEED = 0.3;
 
         // Touch gesture variables
         let touchStartDistance = 0;
@@ -595,8 +683,8 @@
         let lastTouchX = 0;
         let lastTouchY = 0;
 
-        // Model position tracking
-        let modelPosition = { x: 0, y: 0, z: -15 };
+        // Model position tracking - REAL 3D POSITION with CONSTANT VISUAL SIZE
+        let modelPosition = { x: 0, y: 0, z: -75};
         
         // Enhanced model data with detailed information
         const ENHANCED_MODEL_DATA = {
@@ -663,19 +751,26 @@
         };
         
         const AR_CONFIG = {
-            // Initial model position - centered and far enough to be fully visible
-            INITIAL_MODEL_POSITION: { x: 0, y: 0, z: -90},
+            // REAL AR POSITIONING with CONSTANT VISUAL SIZE - LARGER MODEL SIZE
+            INITIAL_MODEL_POSITION: { x: 0, y: 0, z: -8 },
+            REFERENCE_DISTANCE: 8, // Reference distance for scale calculation
             
             // Camera settings
             CAMERA_POSITION: { x: 0, y: 0, z: 0 },
             CAMERA_FOV: 75,
             
-            // Model sizing - fixed size regardless of position
-            INITIAL_SCALE: 3.5,
+            // Model sizing - INCREASED BASE SIZE for better visibility
+            BASE_MODEL_SCALE: 2.0, // Increased from 1.2 to 2.0
             
             // Auto rotation
             AUTO_ROTATE: false,
-            ROTATION_SPEED: 0.01
+            ROTATION_SPEED: 0.01,
+            
+            // Movement increments - Original values
+            NEAR_FAR_INCREMENT: 3, // Original value
+            
+            // Screenshot settings
+            SCREENSHOT_FOLDER: "/storage/emulated/0/DCIM/ARViewer/"
         };
         
         // Model configurations
@@ -683,69 +778,131 @@
     array: {
         title: "Array Data Structure",
         subtitle: "Linear collection of elements with indexed access",
-        model: "file:///android_asset/models/array.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/array.glb"
     },
     binary_tree: {
         title: "Binary Tree",
         subtitle: "Hierarchical structure with parent-child relationships",
-        model: "file:///android_asset/models/binary_tree.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/binary_tree.glb"
     },
     linked_list: {
         title: "Linked List",
         subtitle: "Sequential nodes connected via pointers",
-        model: "file:///android_asset/models/linked_list.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/linked_list.glb"
     },
     stack: {
         title: "Stack (LIFO)",
         subtitle: "Last In First Out data structure",
-        model: "file:///android_asset/models/stack.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/stack.glb"
     },
     queue: {
         title: "Queue (FIFO)",
         subtitle: "First In First Out data structure",
-        model: "file:///android_asset/models/queue.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/queue.glb"
     },
     merge_sort: {
         title: "Merge Sort Algorithm",
         subtitle: "Divide and conquer sorting technique",
-        model: "file:///android_asset/models/merge_sort.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/merge_sort.glb"
     },
     osi_model: {
         title: "OSI Model",
         subtitle: "7-layer network communication framework",
-        model: "file:///android_asset/models/osi_model.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/osi_model.glb"
     },
     client_server: {
         title: "Client-Server Architecture",
         subtitle: "Distributed computing model",
-        model: "file:///android_asset/models/client_server.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/client_server.glb"
     },
     firewall: {
         title: "Network Firewall",
         subtitle: "Security barrier for network traffic",
-        model: "file:///android_asset/models/firewall.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/firewall.glb"
     },
     router: {
         title: "Network Router",
         subtitle: "Data packet forwarding device",
-        model: "file:///android_asset/models/router.glb",
-        scale: AR_CONFIG.INITIAL_SCALE
+        model: "file:///android_asset/models/router.glb"
     }
 };
         
         // Initialize AR
         document.addEventListener('DOMContentLoaded', function() {
             initializeAR();
+            
+            // Auto-hide controls after 5 seconds
+            setTimeout(() => {
+                hideControls();
+            }, 5000);
         });
+        
+        // Toggle controls visibility
+        function toggleControls() {
+            controlsVisible = !controlsVisible;
+            
+            const bottomControls = document.getElementById('bottom-controls');
+            const rightPanel = document.getElementById('right-panel');
+            const rotationControls = document.getElementById('rotation-controls');
+            
+            if (controlsVisible) {
+                bottomControls.classList.add('visible');
+                rightPanel.classList.add('visible');
+                rotationControls.classList.add('visible');
+            } else {
+                bottomControls.classList.remove('visible');
+                rightPanel.classList.remove('visible');
+                rotationControls.classList.remove('visible');
+            }
+        }
+        
+        // Hide controls
+        function hideControls() {
+            controlsVisible = false;
+            
+            const bottomControls = document.getElementById('bottom-controls');
+            const rightPanel = document.getElementById('right-panel');
+            const rotationControls = document.getElementById('rotation-controls');
+            
+            bottomControls.classList.remove('visible');
+            rightPanel.classList.remove('visible');
+            rotationControls.classList.remove('visible');
+        }
+        
+        // Show controls
+        function showControls() {
+            controlsVisible = true;
+            
+            const bottomControls = document.getElementById('bottom-controls');
+            const rightPanel = document.getElementById('right-panel');
+            const rotationControls = document.getElementById('rotation-controls');
+            
+            bottomControls.classList.add('visible');
+            rightPanel.classList.add('visible');
+            rotationControls.classList.add('visible');
+            
+            // Auto-hide after 5 seconds of inactivity
+            clearTimeout(window.controlsTimeout);
+            window.controlsTimeout = setTimeout(() => {
+                hideControls();
+            }, 5000);
+        }
+
+        // Update model scale to maintain constant visual size
+        function updateModelScale() {
+            if (!model) return;
+            
+            // Calculate distance from camera
+            const distance = Math.abs(modelPosition.z);
+            
+            // Calculate scale factor to maintain constant visual size
+            // As distance increases, scale increases proportionally
+            const scaleFactor = distance / AR_CONFIG.REFERENCE_DISTANCE;
+            const newScale = AR_CONFIG.BASE_MODEL_SCALE * scaleFactor;
+            
+            // Apply the calculated scale
+            model.scale.setScalar(newScale);
+        }
         
         async function initializeAR() {
             try {
@@ -753,7 +910,7 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const modelName = urlParams.get('model') || 'array';
                 
-                console.log('Initializing AR with model:', modelName);
+                console.log('Initializing Real AR with constant size:', modelName);
                 
                 // Set model data
                 modelData = MODEL_CONFIGS[modelName] || MODEL_CONFIGS.array;
@@ -771,7 +928,7 @@
                 await initCamera();
                 
                 // Initialize 3D scene
-                updateProgress(30, 'Setting up AR scene...');
+                updateProgress(30, 'Setting up Real AR...');
                 initThreeJS();
                 
                 // Load 3D model
@@ -784,13 +941,16 @@
                 // Hide loading screen
                 document.getElementById('loading').classList.add('hidden');
                 
-                // Hide instructions after 10 seconds
+                // Hide instructions after 12 seconds
                 setTimeout(() => {
                     document.getElementById('ar-instructions').classList.add('hidden');
-                }, 10000);
+                }, 12000);
 
-                updateProgress(90, 'Applying AR enhancements...');
-                updateProgress(100, 'AR experience ready!');
+                updateProgress(90, 'Finalizing Real AR...');
+                updateProgress(100, 'Real AR with constant size ready!');
+                
+                // Show controls initially
+                showControls();
                 
             } catch (error) {
                 console.error('AR initialization failed:', error);
@@ -825,13 +985,21 @@
             canvas.addEventListener('mousemove', handleMouseMove);
             canvas.addEventListener('mouseup', handleMouseUp);
             
-            console.log('✅ AR touch gestures initialized');
+            // Show controls on canvas tap
+            canvas.addEventListener('click', function() {
+                showControls();
+            });
+            
+            console.log('✅ Real AR gestures initialized');
         }
 
         function handleTouchStart(event) {
             event.preventDefault();
             touchCount = event.touches.length;
             touchStartTime = Date.now();
+            
+            // Show controls on touch
+            showControls();
             
             if (touchCount === 1) {
                 lastTouchX = event.touches[0].clientX;
@@ -867,7 +1035,7 @@
             }
             
             if (touchCount === 2 && event.touches.length === 2) {
-                // Two finger pinch - zoom in/out
+                // Two finger pinch - move model near/far with constant visual size
                 const touch1 = event.touches[0];
                 const touch2 = event.touches[1];
                 const currentDistance = Math.hypot(
@@ -875,13 +1043,17 @@
                     touch2.clientY - touch1.clientY
                 );
                 
-                const scale = currentDistance / touchStartDistance;
+                const deltaDistance = currentDistance - touchStartDistance;
+                const threshold = 20; // Increased threshold for better detection
                 
-                if (scale > 1.1) {
-                    moveNear();
-                    touchStartDistance = currentDistance;
-                } else if (scale < 0.9) {
-                    moveFar();
+                if (Math.abs(deltaDistance) > threshold) {
+                    if (deltaDistance > 0) {
+                        // Pinch out - move closer
+                        moveNear();
+                    } else {
+                        // Pinch in - move farther
+                        moveFar();
+                    }
                     touchStartDistance = currentDistance;
                 }
             }
@@ -915,6 +1087,9 @@
             isMouseDown = true;
             lastTouchX = event.clientX;
             lastTouchY = event.clientY;
+            
+            // Show controls on mouse down
+            showControls();
         }
 
         function handleMouseMove(event) {
@@ -937,7 +1112,7 @@
             isMouseDown = false;
         }
 
-        // Model movement functions - FIXED SIZE, ONLY POSITION CHANGES
+        // Model movement functions - REAL 3D MOVEMENT with CONSTANT VISUAL SIZE
         function moveModel(direction) {
             stopModelMovement();
             currentModelMovement = direction;
@@ -961,12 +1136,15 @@
                             break;
                     }
                     
-                    // Update model position WITHOUT changing scale
+                    // Update model position in 3D space
                     model.position.set(
                         modelPosition.x,
                         modelPosition.y,
                         modelPosition.z
                     );
+                    
+                    // Update scale to maintain constant visual size
+                    updateModelScale();
                 }
             }, 16);
         }
@@ -1038,7 +1216,18 @@
             }
         }
 
-        // Enhanced screenshot with AR background
+        // Show toast notification
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Enhanced screenshot with AR background - Save to gallery
         function captureARScreenshot() {
             try {
                 const video = document.getElementById('camera-feed');
@@ -1055,27 +1244,55 @@
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(renderer.domElement, 0, 0);
                 
-                // Create download link
-                const link = document.createElement('a');
-                const filename = `AR_${modelData.title.replace(/\s+/g, '_')}_${Date.now()}.png`;
-                link.download = filename;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+                // Convert to blob
+                canvas.toBlob(function(blob) {
+                    // Save to gallery using ReactNative bridge
+                    if (window.ReactNativeWebView) {
+                        const filename = `RealAR_${modelData.title.replace(/\s+/g, '_')}_${Date.now()}.png`;
+                        const folderPath = AR_CONFIG.SCREENSHOT_FOLDER;
+                        
+                        // Convert blob to base64
+                        const reader = new FileReader();
+                        reader.readAsDataURL(blob);
+                        reader.onloadend = function() {
+                            const base64data = reader.result;
+                            
+                            // Send to React Native to save in gallery
+                            window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'save_screenshot',
+                                data: base64data,
+                                filename: filename,
+                                folderPath: folderPath
+                            }));
+                            
+                            // Show success message
+                            showToast(`Screenshot saved`);
+                        };
+                    } else {
+                        // Fallback for web
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.download = `RealAR_${modelData.title.replace(/\s+/g, '_')}_${Date.now()}.png`;
+                        link.href = url;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        
+                        showToast('Screenshot saved');
+                    }
+                    
+                    // Visual feedback
+                    const button = event.target.closest('.control-btn');
+                    button.style.background = 'rgba(76, 175, 80, 0.8)';
+                    
+                    setTimeout(() => {
+                        button.style.background = '';
+                    }, 1000);
+                    
+                }, 'image/png');
                 
-                // Visual feedback only
-                const button = event.target.closest('.ar-button');
-                const originalText = button.querySelector('span:last-child').textContent;
-                button.querySelector('span:last-child').textContent = 'Saved!';
-                button.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
-                
-                setTimeout(() => {
-                    button.querySelector('span:last-child').textContent = originalText;
-                    button.style.background = '';
-                }, 2000);
-                
-                console.log('✅ AR screenshot saved:', filename);
             } catch (error) {
                 console.error('Screenshot error:', error);
+                showToast('Failed to save screenshot', 3000);
             }
         }
 
@@ -1092,7 +1309,7 @@
                 if (hints) {
                     hints.classList.add('hidden');
                 }
-            }, 15000); // Hide after 15 seconds
+            }, 18000); // Hide after 18 seconds
         }
         
         async function initCamera() {
@@ -1132,7 +1349,7 @@
             // Scene
             scene = new THREE.Scene();
             
-            // Camera setup - fixed position
+            // Camera setup - REAL AR CAMERA
             camera = new THREE.PerspectiveCamera(
                 AR_CONFIG.CAMERA_FOV, 
                 window.innerWidth / window.innerHeight, 
@@ -1140,7 +1357,7 @@
                 1000
             );
             
-            // Set camera position
+            // Set camera position - FIXED LIKE REAL AR
             camera.position.set(
                 AR_CONFIG.CAMERA_POSITION.x,
                 AR_CONFIG.CAMERA_POSITION.y,
@@ -1158,30 +1375,32 @@
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             
-            // Enhanced lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            // PROFESSIONAL LIGHTING SETUP
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
             
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
-            directionalLight.position.set(10, 10, 10);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(5, 10, 5);
             directionalLight.castShadow = true;
             directionalLight.shadow.mapSize.width = 2048;
             directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
             scene.add(directionalLight);
             
-            // Additional lights for better visibility
-            const light2 = new THREE.DirectionalLight(0xffffff, 0.6);
-            light2.position.set(-10, 5, -10);
-            scene.add(light2);
+            // Additional fill lights
+            const fillLight1 = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight1.position.set(-5, 5, -5);
+            scene.add(fillLight1);
             
-            const light3 = new THREE.DirectionalLight(0xffffff, 0.5);
-            light3.position.set(0, -10, 0);
-            scene.add(light3);
+            const fillLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight2.position.set(0, -5, 5);
+            scene.add(fillLight2);
             
             // Handle window resize
             window.addEventListener('resize', onWindowResize);
             
-            console.log('✅ AR setup complete');
+            console.log('✅ Real AR setup complete');
         }
         
         async function loadModel(modelName) {
@@ -1195,34 +1414,46 @@
                     (gltf) => {
                         model = gltf.scene;
                         
-                        // Initialize model position
+                        // Initialize model position - REAL 3D POSITION
                         modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
                         
-                        // Set model position
+                        // Set model position in 3D space
                         model.position.set(
                             modelPosition.x,
                             modelPosition.y,
                             modelPosition.z
                         );
                         
-                        // Set model scale - FIXED SIZE
-                        model.scale.setScalar(modelData.scale * currentSize);
+                        // Set initial scale for constant visual size
+                        model.scale.setScalar(AR_CONFIG.BASE_MODEL_SCALE);
                         
                         // Set initial rotation
                         model.rotation.set(0, 0, 0);
                         
-                        // Enable shadows
+                        // Enable shadows and enhance materials
                         model.traverse((child) => {
                             if (child.isMesh) {
                                 child.castShadow = true;
                                 child.receiveShadow = true;
+                                
+                                // Enhance material for professional look
+                                if (child.material) {
+                                    child.material.roughness = 0.6;
+                                    child.material.metalness = 0.2;
+                                    child.material.envMapIntensity = 1.0;
+                                }
                             }
                         });
                         
                         // Add to scene
                         scene.add(model);
                         
-                        console.log('✅ Model loaded at position:', model.position);
+                        // Initialize scale for constant visual size
+                        updateModelScale();
+                        
+                        console.log('✅ Model loaded with constant visual size system');
+                        console.log('✅ Initial position:', model.position);
+                        console.log('✅ Initial scale:', model.scale);
                         
                         // Send message to React Native
                         if (window.ReactNativeWebView) {
@@ -1254,12 +1485,15 @@
                     const group = new THREE.Group();
                     for(let i = 0; i < 7; i++) {
                         const boxGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-                        const boxMaterial = new THREE.MeshLambertMaterial({ 
-                            color: new THREE.Color().setHSL(i * 0.15, 0.7, 0.6)
+                        const boxMaterial = new THREE.MeshStandardMaterial({ 
+                            color: new THREE.Color().setHSL(i * 0.15, 0.7, 0.6),
+                            roughness: 0.6,
+                            metalness: 0.2
                         });
                         const box = new THREE.Mesh(boxGeometry, boxMaterial);
                         box.position.x = (i - 3) * 0.5;
                         box.castShadow = true;
+                        box.receiveShadow = true;
                         group.add(box);
                     }
                     model = group;
@@ -1267,53 +1501,58 @@
                     
                 case 'osi_model':
                     const osiGroup = new THREE.Group();
-                    const layers = ['Physical', 'Data Link', 'Network', 'Transport', 'Session', 'Presentation', 'Application'];
+                    const colors = [0xff4444, 0xff8844, 0xffcc44, 0x44ff44, 0x44ccff, 0x4444ff, 0x8844ff];
                     for(let i = 0; i < 7; i++) {
-                        const layerGeometry = new THREE.BoxGeometry(1, 0.2, 0.8);
-                        const layerMaterial = new THREE.MeshLambertMaterial({ 
-                            color: new THREE.Color().setHSL(i * 0.14, 0.8, 0.6)
+                        const layerGeometry = new THREE.BoxGeometry(1.2, 0.2, 0.8);
+                        const layerMaterial = new THREE.MeshStandardMaterial({ 
+                            color: colors[i],
+                            roughness: 0.6,
+                            metalness: 0.2
                         });
                         const layer = new THREE.Mesh(layerGeometry, layerMaterial);
                         layer.position.y = i * 0.25 - 0.75;
                         layer.castShadow = true;
+                        layer.receiveShadow = true;
                         osiGroup.add(layer);
                     }
                     model = osiGroup;
                     break;
                     
                 default:
-                    geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-                    material = new THREE.MeshLambertMaterial({ color: 0x9C27B0 });
+                    geometry = new THREE.BoxGeometry(1, 1, 1);
+                    material = new THREE.MeshStandardMaterial({ 
+                        color: 0x9C27B0,
+                        roughness: 0.6,
+                        metalness: 0.2
+                    });
                     model = new THREE.Mesh(geometry, material);
+                    model.castShadow = true;
+                    model.receiveShadow = true;
                     break;
             }
             
-            // Initialize model position
+            // Initialize model position - REAL 3D POSITION
             modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
             
-            // Set model position
+            // Set model position in 3D space
             model.position.set(
                 modelPosition.x,
                 modelPosition.y,
                 modelPosition.z
             );
             
-            // Set model scale - FIXED SIZE
-            model.scale.setScalar(modelData.scale * currentSize);
+            // Set initial scale for constant visual size
+            model.scale.setScalar(AR_CONFIG.BASE_MODEL_SCALE);
             
             // Set initial rotation
             model.rotation.set(0, 0, 0);
             
-            // Enable shadows
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-            
             scene.add(model);
-            console.log('✅ Fallback model created at position:', model.position);
+            
+            // Initialize scale for constant visual size
+            updateModelScale();
+            
+            console.log('✅ Fallback model created with constant visual size system');
         }
         
         function updateUI() {
@@ -1355,55 +1594,43 @@
             }
         }
         
-        function changeSize() {
-            try {
-                if (model) {
-                    if (currentSize <= 0.5) {
-                        currentSize = 1;
-                    } else if (currentSize <= 1) {
-                        currentSize = 1.5;
-                    } else if (currentSize <= 1.5) {
-                        currentSize = 2;
-                    } else {
-                        currentSize = 0.5;
-                    }
-                    
-                    model.scale.setScalar(modelData.scale * currentSize);
-                    
-                    const sizeText = document.getElementById('size-text');
-                    if (sizeText) {
-                        sizeText.textContent = `${currentSize}x`;
-                        setTimeout(() => {
-                            if (sizeText) {
-                                sizeText.textContent = 'Size';
-                            }
-                        }, 2000);
-                    }
-                }
-            } catch (error) {
-                console.error('Size change error:', error);
-            }
-        }
-        
-        // Distance controls - FIXED SIZE, ONLY Z POSITION CHANGES
+        // REAL AR DISTANCE CONTROLS with CONSTANT VISUAL SIZE - ORIGINAL FUNCTIONALITY
         function moveNear() {
             try {
                 if (model) {
-                    modelPosition.z += 1;
+                    // Move model closer in 3D space
+                    modelPosition.z += AR_CONFIG.NEAR_FAR_INCREMENT;
+                    
+                    // Limit how close the model can get
+                    if (modelPosition.z > -2) {
+                        modelPosition.z = -2;
+                    }
+                    
                     model.position.z = modelPosition.z;
-                    console.log('Model moved closer:', modelPosition.z);
+                    
+                    // Update scale to maintain constant visual size
+                    updateModelScale();
                 }
             } catch (error) {
                 console.error('Move near error:', error);
             }
         }
-        
+
         function moveFar() {
             try {
                 if (model) {
-                    modelPosition.z -= 1;
+                    // Move model farther in 3D space
+                    modelPosition.z -= AR_CONFIG.NEAR_FAR_INCREMENT;
+                    
+                    // Limit how far the model can go
+                    if (modelPosition.z < -50) {
+                        modelPosition.z = -50;
+                    }
+                    
                     model.position.z = modelPosition.z;
-                    console.log('Model moved farther:', modelPosition.z);
+                    
+                    // Update scale to maintain constant visual size
+                    updateModelScale();
                 }
             } catch (error) {
                 console.error('Move far error:', error);
@@ -1436,7 +1663,7 @@
                     // Reset model rotation
                     model.rotation.set(0, 0, 0);
                     
-                    // Reset model position
+                    // Reset model position to initial 3D position
                     modelPosition = { ...AR_CONFIG.INITIAL_MODEL_POSITION };
                     model.position.set(
                         modelPosition.x,
@@ -1444,7 +1671,10 @@
                         modelPosition.z
                     );
                     
-                    console.log('✅ AR view reset');
+                    // Reset scale for constant visual size
+                    updateModelScale();
+                    
+                    showToast('View reset');
                 }
             } catch (error) {
                 console.error('Reset error:', error);
@@ -1491,6 +1721,9 @@
                     case 'reset_view':
                         resetView();
                         break;
+                    case 'screenshot_saved':
+                        showToast('Screenshot saved');
+                        break;
                 }
             } catch (error) {
                 console.error('Error handling message:', error);
@@ -1513,7 +1746,7 @@
         
         // Error handling
         window.addEventListener('error', function(event) {
-            console.error('AR Error:', event.error);
+            console.error('Real AR Error:', event.error);
             if (!event.error.message.includes('camera')) {
                 showError('An error occurred in AR view');
             }
@@ -1536,9 +1769,10 @@
         
         // Prevent default touch events on buttons
         document.addEventListener('touchstart', function(e) {
-            if (e.target.classList.contains('ar-button') || 
-                e.target.classList.contains('rotation-button') ||
-                e.target.classList.contains('movement-button')) {
+            if (e.target.classList.contains('control-btn') || 
+                e.target.classList.contains('rotation-btn') ||
+                e.target.classList.contains('panel-btn') ||
+                e.target.classList.contains('controls-toggle')) {
                 e.preventDefault();
             }
         }, { passive: false });

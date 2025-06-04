@@ -7,17 +7,27 @@ buildscript {
         ndkVersion = "26.1.10909125"
         kotlinVersion = "2.0.21"
     }
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        classpath("com.android.tools.build:gradle:8.2.2") // ✅ Add version here
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
-        classpath("com.google.gms:google-services:4.4.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21") // ✅ Use declared version
+        classpath("com.google.gms:google-services:4.4.2") // ✅ This is the correct Firebase plugin
+        // Optional Firebase plugins if needed later:
         // classpath("com.google.firebase:firebase-crashlytics-gradle:2.10.1")
         // classpath("com.google.firebase:perf-plugin:1.4.0")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
     }
 }
 
