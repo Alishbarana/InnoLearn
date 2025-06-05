@@ -1,33 +1,34 @@
-// import { initializeApp, getApps, getApp } from "firebase/app";
-// import { initializeAuth, getAuth, getReactNativePersistence } from "firebase/auth";
-// import { getFirestore } from "firebase/firestore";
-// import AsyncStorage from "@react-native-async-storage/async-storage";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeAuth, getAuth, getReactNativePersistence } from "firebase/auth";
+import { getDatabase } from "firebase/database";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// // Firebase config
-// const firebaseConfig = {
-//   apiKey: "AIzaSyCM_NPcRgIYzArCF8ZZ2kLdrgBwaLaxlY0",
-//   authDomain: "ar-authentication-c0989.firebaseapp.com",
-//   projectId: "ar-authentication-c0989",
-//   storageBucket: "ar-authentication-c0989.appspot.com", // <-- FIXED: should be .appspot.com
-//   messagingSenderId: "1036797103905",
-//   appId: "1:1036797103905:web:5ad735500062cd4b8a3860"
-// };
+// Firebase config from google-services.json
+const firebaseConfig = {
+  apiKey: "AIzaSyC5bEA0EMe1-1RXBeyNrZwH1_k4F3F37Bk",
+  authDomain: "innolearn-77ad7.firebaseapp.com",
+  databaseURL: "https://innolearn-77ad7-default-rtdb.firebaseio.com",
+  projectId: "innolearn-77ad7",
+  storageBucket: "innolearn-77ad7.firebasestorage.app",
+  messagingSenderId: "298647833909",
+  appId: "1:298647833909:android:9b5a5d39fd11c70219107c"
+};
 
-// // Avoid reinitializing the app
-// const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase app
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// // Always initialize Auth with persistence for React Native
-// let auth;
-// try {
-//   auth = initializeAuth(app, {
-//     persistence: getReactNativePersistence(AsyncStorage),
-//   });
-// } catch (e) {
-//   auth = getAuth(app);
-// }
+// Initialize Auth with persistence for React Native
+let auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch (e) {
+  auth = getAuth(app);
+}
 
-// // Firestore
-// const db = getFirestore(app);
+// Initialize Realtime Database
+const db = getDatabase(app);
 
-// export { auth, db };
-// export default app;
+export { auth, db };
+export default app;

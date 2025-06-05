@@ -17,8 +17,8 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import { useNavigation } from "@react-navigation/native";
 import Video from "react-native-video";
 import Colors from "../../styles/colors";
-// import { sendPasswordResetEmail } from "firebase/auth"
-// import { auth } from "../../services/firebase/config"
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../../services/firebase/config";
 
 const videoSource = require("../../assets/forgetpassword.mp4");
 
@@ -40,20 +40,13 @@ export default function EmailVerificationScreen() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Using Firebase password reset
-      // await sendPasswordResetEmail(auth, data.email);
+      await sendPasswordResetEmail(auth, data.email);
       setEmailSent(true);
-      ToastAndroid.show("Email Verified!", ToastAndroid.SHORT);
-
-      // Store the email in a variable to pass to the next screen
+      ToastAndroid.show("Reset email sent!", ToastAndroid.SHORT);
       const verifiedEmail = data.email;
-
-      // Navigate to the ChangePassword screen with the email as a parameter
       navigation.navigate("ChangePassword", { email: verifiedEmail, isReset: true });
     } catch (error) {
-      // Handle specific Firebase auth errors
       let errorMessage = "Failed to send reset email. Please try again.";
-
       if (error.code === "auth/user-not-found") {
         errorMessage = "No account found with this email.";
       } else if (error.code === "auth/invalid-email") {
@@ -61,7 +54,6 @@ export default function EmailVerificationScreen() {
       } else if (error.code === "auth/too-many-requests") {
         errorMessage = "Too many requests. Try again later.";
       }
-
       ToastAndroid.show(errorMessage, ToastAndroid.LONG);
     } finally {
       setLoading(false);

@@ -17,6 +17,8 @@ import { useForm, Controller } from "react-hook-form";
 import Video from "react-native-video";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import Colors from "../../styles/colors";
+import { auth } from "../../services/firebase/config";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 const videoSource = require("../../assets/securepassword.mp4");
 
@@ -47,8 +49,8 @@ export default function ChangePasswordScreen() {
     setLoading(true);
     try {
       if (isResetFlow && verifiedEmail) {
-        // Mock: just navigate to Home
-        navigation.replace("Home");
+        // User will reset via email link, just go to login
+        navigation.replace("Login");
       } else {
         const user = auth.currentUser;
         if (!user) throw new Error("User not logged in");
