@@ -1,5 +1,3 @@
-"use client"
-
 import { View, StyleSheet, StatusBar } from "react-native"
 import SimpleARViewer from "../../components/AR/SimpleARViewer"
 

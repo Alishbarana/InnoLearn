@@ -16,8 +16,8 @@ import { useForm, Controller } from "react-hook-form"
 import Colors from "../../styles/colors"
 import { useNavigation } from "@react-navigation/native"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { auth } from "../../services/firebase/config"
+// import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+// import { auth } from "../../services/firebase/config"
 
 const SignupScreen = () => {
   const navigation = useNavigation()
@@ -40,18 +40,19 @@ const SignupScreen = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
-      await updateProfile(userCredential.user, { displayName: data.name })
-      navigation.replace("Home")
+      // const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
+      // await updateProfile(userCredential.user, { displayName: data.name })
+      // navigation.replace("Home")
+      ToastAndroid.show("Firebase disabled: Signup not performed.", ToastAndroid.SHORT)
     } catch (error) {
       let errorMessage = "Signup failed. Please try again."
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "Email already in use."
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email format."
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "Password is too weak."
-      }
+      // if (error.code === "auth/email-already-in-use") {
+      //   errorMessage = "Email already in use."
+      // } else if (error.code === "auth/invalid-email") {
+      //   errorMessage = "Invalid email format."
+      // } else if (error.code === "auth/weak-password") {
+      //   errorMessage = "Password is too weak."
+      // }
       ToastAndroid.show(errorMessage, ToastAndroid.LONG)
     } finally {
       setLoading(false)

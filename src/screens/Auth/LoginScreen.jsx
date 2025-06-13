@@ -16,8 +16,8 @@ import { useForm, Controller } from "react-hook-form"
 import Colors from "../../styles/colors"
 import { useNavigation } from "@react-navigation/native"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
-import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "../../services/firebase/config"
+// import { signInWithEmailAndPassword } from "firebase/auth"
+// import { auth } from "../../services/firebase/config"
 
 const LoginScreen = () => {
   const navigation = useNavigation()
@@ -36,17 +36,19 @@ const LoginScreen = () => {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password)
-      navigation.replace("Home")
+      // await signInWithEmailAndPassword(auth, data.email, data.password)
+      // navigation.replace("Home")
+      ToastAndroid.show("Firebase disabled: Login not performed.", ToastAndroid.SHORT)
+      navigation.replace("Home") // <-- Add this line to move to Home
     } catch (error) {
       let errorMessage = "Login failed. Please try again."
-      if (error.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email."
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password."
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Invalid email format."
-      }
+      // if (error.code === "auth/user-not-found") {
+      //   errorMessage = "No account found with this email."
+      // } else if (error.code === "auth/wrong-password") {
+      //   errorMessage = "Incorrect password."
+      // } else if (error.code === "auth/invalid-email") {
+      //   errorMessage = "Invalid email format."
+      // }
       ToastAndroid.show(errorMessage, ToastAndroid.LONG)
     } finally {
       setLoading(false)

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WebXR AR Viewer</title>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; font-family: Arial, sans-serif; background: #000; }
+        
+        #camera-feed {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; z-index: 1;
+        }
+        
+        #ar-canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            z-index: 2; pointer-events: auto; touch-action: none;
+        }
+        
+        .ar-header {
+            position: fixed; top: 20px; left: 20px; right: 20px;
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 15px;
+            border-radius: 10px; backdrop-filter: blur(10px); z-index: 4;
+        }
+        
+        .ar-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+        .ar-subtitle { font-size: 14px; opacity: 0.8; }
+        
+        .status-indicator {
+            position: absolute; top: 5px; right: 15px;
+            background: #4CAF50; color: white; padding: 4px 8px;
+            border-radius: 12px; font-size: 10px; font-weight: bold;
+        }
+        
+        .status-indicator.checking { background: #FF9800; }
+        .status-indicator.failed { background: #F44336; }
+        .status-indicator.webxr { background: #2196F3; }
+        
+        #ar-button {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border: none; border-radius: 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; font-weight: bold; cursor: pointer; z-index: 10;
+        }
+        
+        #ar-button:disabled { background: #888; color: #eee; }
+        
+        .controls {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; z-index: 4;
+        }
+        
+        .control-btn {
+            background: rgba(0, 0, 0, 0.8); color: white; border: none;
+            padding: 10px 15px; border-radius: 20px; cursor: pointer;
+        }
+        
+        .close-btn {
+            position: fixed; top: 20px; right: 20px;
+            background: rgba(255, 0, 0, 0.8); color: white; border: none;
+            padding: 10px 15px; border-radius: 20px; cursor: pointer; z-index: 5;
+        }
+        
+        .debug-panel {
+            position: fixed; bottom: 10px; left: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.7); color: white; padding: 10px;
+            border-radius: 5px; font-size: 10px; max-height: 100px;
+            overflow-y: auto; z-index: 100; display: none;
+        }
+        
+        .loading {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8); color: white; padding: 20px;
+            border-radius: 10px; text-align: center; z-index: 5;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <!-- Camera Feed (for fallback) -->
+    <video id="camera-feed" autoplay muted playsinline class="hidden"></video>
+    
+    <!-- 3D Canvas -->
+    <canvas id="ar-canvas"></canvas>
+    
+    <!-- Loading Screen -->
+    <div id="loading" class="loading">
+        <div>Initializing WebXR AR...</div>
+    </div>
+    
+    <!-- AR Header -->
+    <div class="ar-header">
+        <div class="status-indicator checking" id="status">Checking WebXR</div>
+        <div class="ar-title" id="model-title">Loading Model...</div>
+        <div class="ar-subtitle">WebXR AR Experience</div>
+    </div>
+    
+    <!-- Close Button -->
+    <button class="close-btn" onclick="closeAR()">✕ Close</button>
+    
+    <!-- AR Start Button -->
+    <button id="ar-button" disabled>Checking WebXR Support...</button>
+    
+    <!-- Controls -->
+    <div class="controls hidden" id="controls">
+        <button class="control-btn" onclick="resetModel()">Reset</button>
+        <button class="control-btn" onclick="placeCone()">Place Cone</button>
+        <button class="control-btn" onclick="toggleDebug()">Debug</button>
+    </div>
+    
+    <!-- Debug Panel -->
+    <div id="debug-panel" class="debug-panel"></div>
+
+    <script>
+        let scene, camera, renderer, model;
+        let xrSession = null;
+        let isWebXRSupported = false;
+        let isModelPlaced = false;
+        let cameraStream = null;
+        let modelName = 'array';
+        let controller;
+        let reticle;
+        let hitTestSource = null;
+        let hitTestSourceRequested = false;
+        let coneGeometry;
+        
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        modelName = urlParams.get('model') || 'array';
+        const confidence = urlParams.get('confidence') || '95';
+        
+        // Debug logging
+        function log(message) {
+            console.log(message);
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel) {
+                debugPanel.innerHTML += message + '<br>';
+                debugPanel.scrollTop = debugPanel.scrollHeight;
+            }
+        }
+        
+        function toggleDebug() {
+            const debugPanel = document.getElementById('debug-panel');
+            if (debugPanel.style.display === 'block') {
+                debugPanel.style.display = 'none';
+            } else {
+                debugPanel.style.display = 'block';
+            }
+        }
+        
+        log('🚀 Starting WebXR AR with model: ' + modelName);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            log('DOM loaded, starting initialization...');
+            
+            try {
+                document.getElementById('model-title').textContent = modelName.replace('_', ' ').toUpperCase();
+                
+                await checkWebXRSupport();
+                initThreeJS();
+                
+                document.getElementById('loading').classList.add('hidden');
+                
+                if (isWebXRSupported) {
+                    document.getElementById('ar-button').textContent = 'Start WebXR AR';
+                    document.getElementById('ar-button').disabled = false;
+                    document.getElementById('ar-button').addEventListener('click', startWebXR);
+                    sendMessageToRN({ type: 'ar_mode', mode: 'webxr' });
+                } else {
+                    document.getElementById('ar-button').textContent = 'Start Camera AR';
+                    document.getElementById('ar-button').disabled = false;
+                    document.getElementById('ar-button').addEventListener('click', startCameraAR);
+                    sendMessageToRN({ type: 'ar_mode', mode: 'camera' });
+                }
+                
+                document.getElementById('controls').classList.remove('hidden');
+                
+            } catch (error) {
+                log('Initialization failed: ' + error.message);
+                document.getElementById('loading').innerHTML = '<div>Initialization failed: ' + error.message + '</div>';
+                sendMessageToRN({ type: 'ar_error', message: error.message });
+            }
+        });
+        
+        // Check WebXR support
+        async function checkWebXRSupport() {
+            const statusEl = document.getElementById('status');
+            
+            log('Checking WebXR support...');
+            log('navigator.xr available: ' + !!navigator.xr);
+            log('User agent: ' + navigator.userAgent);
+            
+            if (!navigator.xr) {
+                log('❌ navigator.xr not available');
+                statusEl.textContent = 'WebXR Not Available';
+                statusEl.className = 'status-indicator failed';
+                isWebXRSupported = false;
+                return;
+            }
+            
+            try {
+                isWebXRSupported = await navigator.xr.isSessionSupported('immersive-ar');
+                log('WebXR AR supported: ' + isWebXRSupported);
+                
+                if (isWebXRSupported) {
+                    statusEl.textContent = 'WebXR Ready';
+                    statusEl.className = 'status-indicator webxr';
+                } else {
+                    statusEl.textContent = 'Camera AR Mode';
+                    statusEl.className = 'status-indicator failed';
+                }
+                
+            } catch (error) {
+                log('WebXR check failed: ' + error.message);
+                statusEl.textContent = 'Camera AR Mode';
+                statusEl.className = 'status-indicator failed';
+                isWebXRSupported = false;
+            }
+        }
+        
+        // Start WebXR session
+        async function startWebXR() {
+            if (!isWebXRSupported) {
+                startCameraAR();
+                return;
+            }
+            
+            try {
+                log('Starting WebXR session...');
+                
+                // Request a session with hit-test
+                xrSession = await navigator.xr.requestSession('immersive-ar', {
+                    requiredFeatures: ['hit-test'],
+                    optionalFeatures: ['dom-overlay'],
+                    domOverlay: { root: document.body }
+                });
+                
+                // Set up WebXR
+                renderer.xr.enabled = true;
+                await renderer.xr.setSession(xrSession);
+                
+                // Create controller for hit-test
+                controller = renderer.xr.getController(0);
+                controller.addEventListener('select', onSelect);
+                scene.add(controller);
+                
+                // Create reticle for hit-test
+                reticle = new THREE.Mesh(
+                    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                    new THREE.MeshBasicMaterial()
+                );
+                reticle.matrixAutoUpdate = false;
+                reticle.visible = false;
+                scene.add(reticle);
+                
+                // Create cone geometry for placing
+                coneGeometry = new THREE.CylinderGeometry(0, 0.05, 0.2, 32).rotateX(Math.PI / 2);
+                
+                // Handle session end
+                xrSession.addEventListener('end', () => {
+                    log('WebXR session ended');
+                    xrSession = null;
+                    hitTestSourceRequested = false;
+                    hitTestSource = null;
+                    
+                    document.getElementById('ar-button').style.display = 'block';
+                    sendMessageToRN({ type: 'webxr_session_ended' });
+                });
+                
+                document.getElementById('ar-button').style.display = 'none';
+                renderer.setAnimationLoop(renderWebXR);
+                
+                log('✅ WebXR session started successfully');
+                sendMessageToRN({ type: 'webxr_session_started' });
+                
+            } catch (error) {
+                log('Failed to start WebXR: ' + error.message);
+                console.error('Failed to start WebXR:', error);
+                startCameraAR(); // Fallback
+            }
+        }
+        
+        // WebXR render loop with hit-test
+        function renderWebXR(timestamp, frame) {
+            if (!frame) return;
+            
+            const referenceSpace = renderer.xr.getReferenceSpace();
+            const session = renderer.xr.getSession();
+            
+            if (hitTestSourceRequested === false) {
+                session.requestReferenceSpace('viewer').then((referenceSpace) => {
+                    session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                        hitTestSource = source;
+                    });
+                });
+                
+                hitTestSourceRequested = true;
+            }
+            
+            if (hitTestSource) {
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                
+                if (hitTestResults.length) {
+                    const hit = hitTestResults[0];
+                    const pose = hit.getPose(referenceSpace);
+                    
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(pose.transform.matrix);
+                } else {
+                    reticle.visible = false;
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Handle controller select event
+        function onSelect() {
+            if (reticle.visible) {
+                const material = new THREE.MeshPhongMaterial({ color: 0xffffff * Math.random() });
+                const mesh = new THREE.Mesh(coneGeometry, material);
+                
+                mesh.position.setFromMatrixPosition(reticle.matrix);
+                mesh.quaternion.setFromRotationMatrix(reticle.matrix);
+                
+                scene.add(mesh);
+                
+                // Send message to React Native
+                sendMessageToRN({ 
+                    type: 'cone_placed',
+                    position: {
+                        x: mesh.position.x.toFixed(2),
+                        y: mesh.position.y.toFixed(2),
+                        z: mesh.position.z.toFixed(2)
+                    }
+                });
+            }
+        }
+        
+        // Place a cone in camera AR mode
+        function placeCone() {
+            if (!isWebXRSupported && scene) {
+                const material = new THREE.MeshPhongMaterial({ color: 0xffffff * Math.random() });
+                const geometry = new THREE.CylinderGeometry(0, 0.05, 0.2, 32).rotateX(Math.PI / 2);
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                // Place in front of camera
+                mesh.position.set(0, 0, -0.5);
+                scene.add(mesh);
+                
+                // Send message to React Native
+                sendMessageToRN({ 
+                    type: 'cone_placed',
+                    position: {
+                        x: mesh.position.x.toFixed(2),
+                        y: mesh.position.y.toFixed(2),
+                        z: mesh.position.z.toFixed(2)
+                    }
+                });
+            }
+        }
+        
+        // Fallback camera AR
+        async function startCameraAR() {
+            try {
+                log('Starting camera AR fallback...');
+                
+                // Request camera access
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                
+                // Show camera feed
+                const video = document.getElementById('camera-feed');
+                video.srcObject = cameraStream;
+                video.classList.remove('hidden');
+                
+                // Create a simple cone
+                const geometry = new THREE.CylinderGeometry(0, 0.05, 0.2, 32).rotateX(Math.PI / 2);
+                const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+                const cone = new THREE.Mesh(geometry, material);
+                cone.position.set(0, 0, -0.5);
+                scene.add(cone);
+                
+                document.getElementById('ar-button').style.display = 'none';
+                renderer.setAnimationLoop(() => {
+                    renderer.render(scene, camera);
+                });
+                
+                // Update status
+                document.getElementById('status').textContent = 'Camera AR Active';
+                document.getElementById('status').className = 'status-indicator';
+                
+                log('✅ Camera AR started');
+                sendMessageToRN({ type: 'camera_ar_started' });
+                
+            } catch (error) {
+                log('Camera AR failed: ' + error.message);
+                sendMessageToRN({ type: 'ar_error', message: 'Camera access denied' });
+            }
+        }
+        
+        // Initialize Three.js
+        function initThreeJS() {
+            const canvas = document.getElementById('ar-canvas');
+            
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas, 
+                alpha: true,
+                antialias: true 
+            });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(10, 10, 10);
+            scene.add(directionalLight);
+            
+            log('✅ Three.js initialized');
+        }
+        
+        // Reset model position
+        function resetModel() {
+            if (scene) {
+                // Remove all cones
+                scene.traverse((object) => {
+                    if (object instanceof THREE.Mesh && object !== reticle) {
+                        scene.remove(object);
+                    }
+                });
+                
+                log('Scene reset');
+            }
+        }
+        
+        function closeAR() {
+            log('Closing AR...');
+            
+            // Stop camera stream
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // End XR session
+            if (xrSession) {
+                xrSession.end();
+            }
+            
+            // Notify React Native
+            sendMessageToRN({ type: 'close_ar' });
+        }
+        
+        // Send message to React Native
+        function sendMessageToRN(data) {
+            if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify(data));
+            }
+            log('Message sent to RN: ' + JSON.stringify(data));
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        log('🎯 WebXR AR script loaded and ready');
+    </script>
+</body>
+</html>

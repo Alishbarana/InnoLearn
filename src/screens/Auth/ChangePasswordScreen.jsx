@@ -17,8 +17,8 @@ import { useForm, Controller } from "react-hook-form";
 import Video from "react-native-video";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import Colors from "../../styles/colors";
-import { auth } from "../../services/firebase/config";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+// import { auth } from "../../services/firebase/config";
+// import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 const videoSource = require("../../assets/securepassword.mp4");
 
@@ -48,34 +48,34 @@ export default function ChangePasswordScreen() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      if (isResetFlow && verifiedEmail) {
-        // User will reset via email link, just go to login
-        navigation.replace("Login");
-      } else {
-        const user = auth.currentUser;
-        if (!user) throw new Error("User not logged in");
-        if (user.email) {
-          const credential = EmailAuthProvider.credential(
-            user.email,
-            data.currentPassword
-          );
-          await reauthenticateWithCredential(user, credential);
-          await updatePassword(user, data.newPassword);
-          ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
-          navigation.replace("Home");
-        } else {
-          throw new Error("User email not available");
-        }
-      }
+      // if (isResetFlow && verifiedEmail) {
+      //   navigation.replace("Login");
+      // } else {
+      //   const user = auth.currentUser;
+      //   if (!user) throw new Error("User not logged in");
+      //   if (user.email) {
+      //     const credential = EmailAuthProvider.credential(
+      //       user.email,
+      //       data.currentPassword
+      //     );
+      //     await reauthenticateWithCredential(user, credential);
+      //     await updatePassword(user, data.newPassword);
+      //     ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
+      //     navigation.replace("Home");
+      //   } else {
+      //     throw new Error("User email not available");
+      //   }
+      // }
+      ToastAndroid.show("Firebase disabled: Password not changed.", ToastAndroid.SHORT);
     } catch (error) {
       let errorMessage = "Failed to update password. Please try again.";
-      if (error.code === "auth/wrong-password") {
-        errorMessage = "Current password is incorrect.";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "New password is too weak.";
-      } else if (error.code === "auth/requires-recent-login") {
-        errorMessage = "Please log in again before changing your password.";
-      }
+      // if (error.code === "auth/wrong-password") {
+      //   errorMessage = "Current password is incorrect.";
+      // } else if (error.code === "auth/weak-password") {
+      //   errorMessage = "New password is too weak.";
+      // } else if (error.code === "auth/requires-recent-login") {
+      //   errorMessage = "Please log in again before changing your password.";
+      // }
       ToastAndroid.show(errorMessage, ToastAndroid.LONG);
     } finally {
       setLoading(false);
