@@ -1,7 +1,5 @@
-"use client"
-
-import { useRef, useEffect, useState } from "react"
-import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform } from "react-native"
+import React, { useRef, useEffect, useState } from "react"
+import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform, __DEV__ } from "react-native"
 import { WebView } from "react-native-webview"
 import { check, request, PERMISSIONS, RESULTS } from "react-native-permissions"
 
@@ -12,6 +10,21 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
   const [error, setError] = useState(null)
   const [arMode, setArMode] = useState("checking") // "webxr", "camera", "none"
   const [debugInfo, setDebugInfo] = useState({})
+
+  // Map your app's model names to GitHub Pages model names
+  const modelMapping = {
+    array: "array",
+    binary_tree: "binary_tree",
+    linked_list: "linked_list",
+    stack: "stack",
+    queue: "queue",
+    merge_sort: "merge_sort",
+    osi_model: "osi_model",
+    client_server: "client_server",
+    firewall: "firewall",
+    router: "router",
+    // Add more mappings as needed
+  }
 
   useEffect(() => {
     checkCameraPermission()
@@ -39,15 +52,18 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
   }
 
   const getARSource = () => {
-    // Use the model name to determine which 3D model to load
+    // Map the model name to the correct format
+    const mappedModelName = modelMapping[modelName?.toLowerCase()] || "array"
+
     const params = new URLSearchParams({
-      model: modelName,
+      model: mappedModelName,
       confidence: confidence.toString(),
-      timestamp: Date.now(), // Prevent caching
+      timestamp: Date.now(),
     }).toString()
 
+    // Replace with your GitHub Pages URL
     return {
-      uri: `file:///android_asset/ar/webxr-ar-viewer.html?${params}`,
+      uri: `https://alishbarana.github.io/Ar-viewer-web/?${params}`,
     }
   }
 
@@ -58,6 +74,7 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
 
       switch (data.type) {
         case "close_ar":
+        case "exit_ar":
           if (onClose) {
             onClose()
           }
@@ -68,24 +85,20 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
           break
         case "ar_error":
           setError(data.message || "An error occurred in AR view")
-          break
-        case "ar_mode":
-          setArMode(data.mode)
-          console.log("AR mode set to:", data.mode)
-          break
-        case "debug_info":
-          setDebugInfo(data.info)
+          setIsLoading(false)
           break
         case "webxr_session_started":
           console.log("✅ WebXR session started")
           setIsLoading(false)
           break
-        case "camera_ar_started":
-          console.log("✅ Camera AR fallback started")
-          setIsLoading(false)
+        case "webxr_session_ended":
+          console.log("WebXR session ended")
           break
-        case "cone_placed":
-          console.log("✅ Cone placed at:", data.position)
+        case "debug_info":
+          setDebugInfo(data.info)
+          break
+        case "ar_ready":
+          setIsLoading(false)
           break
       }
     } catch (error) {
@@ -104,8 +117,10 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         webXR: !!navigator.xr,
         camera: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
         https: location.protocol === 'https:',
-        host: location.host
+        host: location.host,
+        isWebView: /wv/.test(navigator.userAgent)
       };
+      
       console.log('Environment info:', envInfo);
       
       // Send debug info back to React Native
@@ -116,18 +131,23 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         }));
       }
       
-      // Enable camera access logging
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        console.log('✅ Camera API available');
-        
-        // Wrap getUserMedia to log calls
-        const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-        navigator.mediaDevices.getUserMedia = function(constraints) {
-          console.log('📷 Camera access requested:', constraints);
-          return originalGetUserMedia(constraints);
-        };
-      } else {
-        console.log('❌ Camera API not available');
+      // Add communication channel from WebXR to React Native
+      window.sendToReactNative = function(data) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(data));
+        }
+      };
+      
+      // Listen for AR session events
+      if (navigator.xr) {
+        navigator.xr.addEventListener('sessionstart', function() {
+          console.log('WebXR session started');
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'webxr_session_started'
+            }));
+          }
+        });
       }
       
       true; // Required for injected JavaScript
@@ -142,10 +162,14 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
           style={styles.retryButton}
           onPress={() => {
             setError(null)
+            setIsLoading(true)
             checkCameraPermission()
           }}
         >
           <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: "#666" }]} onPress={onClose}>
+          <Text style={styles.retryButtonText}>Close</Text>
         </TouchableOpacity>
       </View>
     )
@@ -176,13 +200,13 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         // Media permissions
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
-        // WebXR and AR specific settings
         allowsFullscreenVideo={true}
+        // WebXR and AR specific settings
         allowsBackForwardNavigationGestures={false}
         bounces={false}
         scrollEnabled={false}
         // Performance settings
-        startInLoadingState={false}
+        startInLoadingState={true}
         scalesPageToFit={true}
         cacheEnabled={false}
         incognito={false}
@@ -199,6 +223,10 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         onLoadEnd={() => {
           console.log("WebView loading finished")
           // Don't set loading to false here, wait for specific messages
+          // But set a timeout in case we don't get a message
+          setTimeout(() => {
+            setIsLoading(false)
+          }, 8000)
         }}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent
@@ -208,6 +236,13 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         onHttpError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent
           console.error("AR WebView HTTP error:", nativeEvent)
+          if (nativeEvent.statusCode >= 400) {
+            setError(`Failed to load AR experience (${nativeEvent.statusCode})`)
+          }
+        }}
+        onPermissionRequest={(request) => {
+          console.log("WebView permission request:", request)
+          request.grant()
         }}
         style={styles.webview}
       />
@@ -221,6 +256,9 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
               : arMode === "camera"
                 ? "Starting Camera AR..."
                 : "Loading AR Experience..."}
+          </Text>
+          <Text style={styles.subLoadingText}>
+            Model: {modelName} | Confidence: {confidence}%
           </Text>
           {arMode !== "checking" && (
             <Text style={[styles.arModeIndicator, { color: arMode === "webxr" ? "#4CAF50" : "#FF9800" }]}>
@@ -236,7 +274,7 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
           <Text style={styles.debugTitle}>Debug Info:</Text>
           {Object.entries(debugInfo).map(([key, value]) => (
             <Text key={key} style={styles.debugText}>
-              {key}: {typeof value === "boolean" ? (value ? "Yes" : "No") : value}
+              {key}: {typeof value === "boolean" ? (value ? "✅" : "❌") : String(value)}
             </Text>
           ))}
         </View>
@@ -270,8 +308,15 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: "#fff",
-    fontSize: 16,
-    marginTop: 10,
+    fontSize: 18,
+    marginTop: 15,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  subLoadingText: {
+    color: "#ccc",
+    fontSize: 14,
+    marginTop: 8,
     textAlign: "center",
   },
   arModeIndicator: {
@@ -284,13 +329,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     paddingHorizontal: 20,
+    marginBottom: 20,
   },
   retryButton: {
     backgroundColor: "#007AFF",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    marginTop: 16,
+    marginTop: 10,
   },
   retryButtonText: {
     color: "#fff",
@@ -299,21 +345,22 @@ const styles = StyleSheet.create({
   },
   debugOverlay: {
     position: "absolute",
-    top: 10,
+    top: 50,
     left: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
     padding: 10,
     borderRadius: 5,
-    maxWidth: "80%",
+    maxWidth: "90%",
   },
   debugTitle: {
-    color: "#fff",
+    color: "#4CAF50",
     fontWeight: "bold",
     marginBottom: 5,
   },
   debugText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: 11,
+    marginBottom: 2,
   },
 })
 
