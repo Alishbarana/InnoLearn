@@ -10,6 +10,8 @@ import {
   Dimensions,
   StatusBar,
   FlatList,
+  BackHandler,
+  Platform
 } from "react-native";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -18,6 +20,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import LinearGradient from "react-native-linear-gradient";
 import * as Animatable from "react-native-animatable";
+import AuthService from "../../services/firebase/authService"; // Add this import
 
 const { width, height } = Dimensions.get("window");
 
@@ -26,7 +29,8 @@ const EducationalTopics = () => {
   const [activeCategory, setActiveCategory] = useState("featured");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredTerms, setFilteredTerms] = useState([]);
-  
+  const [userName, setUserName] = useState("");
+
   // Animation values
   const headerAnimation = useRef(new Animated.Value(0)).current;
   const searchBarAnimation = useRef(new Animated.Value(0)).current;
@@ -93,6 +97,27 @@ const EducationalTopics = () => {
         }),
       ])
     ).start();
+
+    // Fetch user display name
+    const user = AuthService.getCurrentUser();
+    if (user && user.displayName) {
+      setUserName(user.displayName);
+    } else if (user && user.email) {
+      // fallback: use email before @ if no displayName
+      setUserName(user.email.split("@")[0]);
+    } else {
+      setUserName("User");
+    }
+
+    const backAction = () => {
+      BackHandler.exitApp();
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      backAction
+    );
+    return () => backHandler.remove();
   }, []);
 
   // Filter terms based on search query
@@ -298,11 +323,13 @@ const EducationalTopics = () => {
           <View style={styles.headerContent}>
             <View style={styles.userInfo}>
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>U</Text>
+                <Text style={styles.avatarText}>
+                  {userName ? userName.charAt(0).toUpperCase() : "U"}
+                </Text>
               </View>
               <View>
-                <Text style={styles.welcomeText}>Welcome back,</Text>
-                <Text style={styles.nameText}>User</Text>
+                <Text style={styles.welcomeText}>Welcome</Text>
+                <Text style={styles.nameText}>{userName}</Text>
               </View>
             </View>
             

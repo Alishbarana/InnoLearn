@@ -2,17 +2,27 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Animated, Dimensions } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/Onboarding/SplashScreen';
+import AuthService from './src/services/firebase/authService';
 
 const { height } = Dimensions.get("window");
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(null);
 
   const appNamePosition = useRef(new Animated.Value(0)).current;
   const splashImageScale = useRef(new Animated.Value(1)).current;
   const splashOpacity = useRef(new Animated.Value(1)).current;
   const splashTranslateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Listen for auth state changes
+    const unsubscribe = AuthService.onAuthStateChanged(user => {
+      setIsLoggedIn(!!user);
+    });
+    return unsubscribe;
+  }, []);
 
   const handleSplashComplete = () => {
     Animated.sequence([
@@ -51,8 +61,8 @@ export default function App() {
     };
   }, []);
 
-  // Show splash animation first
-  if (!splashAnimationComplete) {
+  // Wait for auth state to be determined
+  if (isLoggedIn === null || !splashAnimationComplete) {
     return (
       <View style={styles.container}>
         {showSplash && (
@@ -72,8 +82,8 @@ export default function App() {
     );
   }
 
-  // After splash, show main navigation (which includes WelcomeScreen as a route)
-  return <AppNavigator />;
+  // Pass initialRouteName to AppNavigator
+  return <AppNavigator isLoggedIn={isLoggedIn} />;
 }
 
 const styles = StyleSheet.create({
