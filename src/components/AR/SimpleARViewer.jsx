@@ -1,4 +1,6 @@
-import React, { useRef, useEffect, useState } from "react"
+"use client"
+
+import { useRef, useEffect, useState } from "react"
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Platform, __DEV__ } from "react-native"
 import { WebView } from "react-native-webview"
 import { check, request, PERMISSIONS, RESULTS } from "react-native-permissions"
@@ -8,22 +10,20 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
   const [isLoading, setIsLoading] = useState(true)
   const [hasPermission, setHasPermission] = useState(false)
   const [error, setError] = useState(null)
-  const [arMode, setArMode] = useState("checking") // "webxr", "camera", "none"
   const [debugInfo, setDebugInfo] = useState({})
 
-  // Map your app's model names to GitHub Pages model names
+  // Enhanced model mapping to match your HTML file exactly
   const modelMapping = {
     array: "array",
     binary_tree: "binary_tree",
-    linked_list: "linked_list",
-    stack: "stack",
-    queue: "queue",
-    merge_sort: "merge_sort",
-    osi_model: "osi_model",
     client_server: "client_server",
     firewall: "firewall",
+    linked_list: "linked_list",
+    merge_sort: "merge_sort",
+    osi_model: "osi_model",
+    queue: "queue",
     router: "router",
-    // Add more mappings as needed
+    stack: "stack",
   }
 
   useEffect(() => {
@@ -55,16 +55,24 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
     // Map the model name to the correct format
     const mappedModelName = modelMapping[modelName?.toLowerCase()] || "array"
 
+    console.log("Model mapping:", {
+      original: modelName,
+      mapped: mappedModelName,
+      available: Object.keys(modelMapping),
+    })
+
     const params = new URLSearchParams({
       model: mappedModelName,
       confidence: confidence.toString(),
       timestamp: Date.now(),
+      // Add debug parameter to help with troubleshooting
+      debug: __DEV__ ? "true" : "false",
     }).toString()
 
-    // Replace with your GitHub Pages URL
-    return {
-      uri: `https://alishbarana.github.io/Ar-viewer-web/?${params}`,
-    }
+    const url = `https://alishbarana.github.io/Ar-viewer-web/?${params}`
+    console.log("Generated AR URL:", url)
+
+    return { uri: url }
   }
 
   const handleWebViewMessage = (event) => {
@@ -83,6 +91,11 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
           setIsLoading(false)
           console.log("✅ Model loaded:", data.modelName)
           break
+        case "model_load_error":
+          console.error("❌ Model load error:", data.error)
+          setError(`Failed to load model: ${data.error}`)
+          setIsLoading(false)
+          break
         case "ar_error":
           setError(data.message || "An error occurred in AR view")
           setIsLoading(false)
@@ -100,16 +113,26 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         case "ar_ready":
           setIsLoading(false)
           break
+        case "model_selected":
+          console.log("Model selected in WebView:", data.model)
+          break
       }
     } catch (error) {
       console.error("Error parsing AR WebView message:", error)
     }
   }
 
-  // This script injects code to help with WebXR detection and debugging
+  // Enhanced injection script with better model handling
   const injectedJavaScript = `
     (function() {
       console.log('🚀 Injecting WebXR enablement script...');
+      
+      // Get URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const modelParam = urlParams.get('model');
+      const confidenceParam = urlParams.get('confidence');
+      
+      console.log('URL Parameters:', { model: modelParam, confidence: confidenceParam });
       
       // Log environment info for debugging
       const envInfo = {
@@ -118,7 +141,9 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         camera: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
         https: location.protocol === 'https:',
         host: location.host,
-        isWebView: /wv/.test(navigator.userAgent)
+        isWebView: /wv/.test(navigator.userAgent),
+        modelParam: modelParam,
+        confidenceParam: confidenceParam
       };
       
       console.log('Environment info:', envInfo);
@@ -131,24 +156,59 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         }));
       }
       
-      // Add communication channel from WebXR to React Native
+      // Auto-select model if parameter is provided
+      if (modelParam) {
+        // Wait for DOM to be ready
+        const checkAndSetModel = () => {
+          const modelSelect = document.getElementById('model-select');
+          if (modelSelect) {
+            console.log('Setting model to:', modelParam);
+            modelSelect.value = modelParam;
+            
+            // Trigger change event to update the model
+            const event = new Event('change', { bubbles: true });
+            modelSelect.dispatchEvent(event);
+            
+            // Notify React Native
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'model_selected',
+                model: modelParam
+              }));
+            }
+          } else {
+            // Retry if model select not found yet
+            setTimeout(checkAndSetModel, 100);
+          }
+        };
+        
+        // Start checking after a short delay
+        setTimeout(checkAndSetModel, 500);
+      }
+      
+      // Enhanced communication channel
       window.sendToReactNative = function(data) {
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(data));
         }
       };
       
-      // Listen for AR session events
-      if (navigator.xr) {
-        navigator.xr.addEventListener('sessionstart', function() {
-          console.log('WebXR session started');
+      // Override console.error to catch model loading errors
+      const originalError = console.error;
+      console.error = function(...args) {
+        originalError.apply(console, args);
+        
+        // Check if it's a model loading error
+        const errorMessage = args.join(' ');
+        if (errorMessage.includes('Error loading model') || errorMessage.includes('404')) {
           if (window.ReactNativeWebView) {
             window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'webxr_session_started'
+              type: 'model_load_error',
+              error: errorMessage
             }));
           }
-        });
-      }
+        }
+      };
       
       true; // Required for injected JavaScript
     })();
@@ -190,31 +250,23 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         ref={webViewRef}
         source={getARSource()}
         originWhitelist={["*"]}
-        // File access permissions
         allowFileAccess={true}
         allowFileAccessFromFileURLs={true}
         allowUniversalAccessFromFileURLs={true}
-        // JavaScript and DOM
         javaScriptEnabled={true}
         domStorageEnabled={true}
-        // Media permissions
         mediaPlaybackRequiresUserAction={false}
         allowsInlineMediaPlayback={true}
         allowsFullscreenVideo={true}
-        // WebXR and AR specific settings
         allowsBackForwardNavigationGestures={false}
         bounces={false}
         scrollEnabled={false}
-        // Performance settings
         startInLoadingState={true}
         scalesPageToFit={true}
         cacheEnabled={false}
         incognito={false}
-        // Android specific
         mixedContentMode="compatibility"
-        // Inject WebXR enablement script
         injectedJavaScript={injectedJavaScript}
-        // Event handlers
         onMessage={handleWebViewMessage}
         onLoadStart={() => {
           console.log("WebView loading started")
@@ -222,11 +274,9 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
         }}
         onLoadEnd={() => {
           console.log("WebView loading finished")
-          // Don't set loading to false here, wait for specific messages
-          // But set a timeout in case we don't get a message
           setTimeout(() => {
             setIsLoading(false)
-          }, 8000)
+          }, 3000)
         }}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent
@@ -250,21 +300,9 @@ const SimpleARViewer = ({ modelName = "array", confidence = 95, onClose, style }
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>
-            {arMode === "webxr"
-              ? "Starting WebXR..."
-              : arMode === "camera"
-                ? "Starting Camera AR..."
-                : "Loading AR Experience..."}
-          </Text>
-          <Text style={styles.subLoadingText}>
-            Model: {modelName} | Confidence: {confidence}%
-          </Text>
-          {arMode !== "checking" && (
-            <Text style={[styles.arModeIndicator, { color: arMode === "webxr" ? "#4CAF50" : "#FF9800" }]}>
-              {arMode === "webxr" ? "WebXR Mode" : arMode === "camera" ? "Camera AR Mode" : "Checking AR Support..."}
-            </Text>
-          )}
+          <Text style={styles.loadingText}>Loading AR Experience...</Text>
+          <Text style={styles.subLoadingText}>Model: {modelMapping[modelName?.toLowerCase()] || "array"}</Text>
+          <Text style={styles.subLoadingText}>Confidence: {confidence}%</Text>
         </View>
       )}
 
@@ -317,11 +355,6 @@ const styles = StyleSheet.create({
     color: "#ccc",
     fontSize: 14,
     marginTop: 8,
-    textAlign: "center",
-  },
-  arModeIndicator: {
-    fontSize: 14,
-    marginTop: 5,
     textAlign: "center",
   },
   errorText: {
