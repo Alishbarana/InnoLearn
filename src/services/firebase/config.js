@@ -1,13 +1,14 @@
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
+// import { getApp, getApps, initializeApp } from 'firebase/app';
+// import { getAuth } from 'firebase/auth';
+// import { getFirestore, serverTimestamp } from 'firebase/firestore';
+// import { getStorage } from 'firebase/storage';
+// import { firebaseConfig } from './firebaseConfig'; // your config object
 
-// React Native Firebase automatically uses google-services.json
-// No manual initialization needed!
+// // Initialize Firebase app if not already initialized
+// const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Test connection (remove in production)
-console.log('🔥 Firebase Auth initialized:', !!auth());
-console.log('🔥 Firebase Firestore initialized:', !!firestore());
-console.log('🔥 Firebase Storage initialized:', !!storage());
+// const auth = getAuth(app);
+// const firestore = getFirestore(app);
+// const storage = getStorage(app);
 
-export { auth, firestore, storage };
+// export { app, auth, firestore, storage, serverTimestamp };

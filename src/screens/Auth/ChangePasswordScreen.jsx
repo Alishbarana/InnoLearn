@@ -17,8 +17,7 @@ import { useForm, Controller } from "react-hook-form";
 import Video from "react-native-video";
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
 import Colors from "../../styles/colors";
-// import { auth } from "../../services/firebase/config";
-// import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import AuthService from "../../services/firebase/authService"; // Add this import
 
 const videoSource = require("../../assets/securepassword.mp4");
 
@@ -48,35 +47,22 @@ export default function ChangePasswordScreen() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // if (isResetFlow && verifiedEmail) {
-      //   navigation.replace("Login");
-      // } else {
-      //   const user = auth.currentUser;
-      //   if (!user) throw new Error("User not logged in");
-      //   if (user.email) {
-      //     const credential = EmailAuthProvider.credential(
-      //       user.email,
-      //       data.currentPassword
-      //     );
-      //     await reauthenticateWithCredential(user, credential);
-      //     await updatePassword(user, data.newPassword);
-      //     ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
-      //     navigation.replace("Home");
-      //   } else {
-      //     throw new Error("User email not available");
-      //   }
-      // }
-      ToastAndroid.show("Firebase disabled: Password not changed.", ToastAndroid.SHORT);
+      if (isResetFlow && verifiedEmail) {
+        // After reset, just go to login
+        navigation.replace("Login");
+      } else {
+        // Change password for logged-in user
+        const result = await AuthService.updateUserPassword(data.newPassword);
+        if (result.success) {
+          ToastAndroid.show("Password updated successfully!", ToastAndroid.SHORT);
+          navigation.replace("Home");
+        } else {
+          let errorMessage = result.error || "Failed to update password. Please try again.";
+          ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+        }
+      }
     } catch (error) {
-      let errorMessage = "Failed to update password. Please try again.";
-      // if (error.code === "auth/wrong-password") {
-      //   errorMessage = "Current password is incorrect.";
-      // } else if (error.code === "auth/weak-password") {
-      //   errorMessage = "New password is too weak.";
-      // } else if (error.code === "auth/requires-recent-login") {
-      //   errorMessage = "Please log in again before changing your password.";
-      // }
-      ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      ToastAndroid.show("Failed to update password. Please try again.", ToastAndroid.LONG);
     } finally {
       setLoading(false);
     }

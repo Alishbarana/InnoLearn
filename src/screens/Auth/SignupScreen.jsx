@@ -16,8 +16,8 @@ import { useForm, Controller } from "react-hook-form"
 import Colors from "../../styles/colors"
 import { useNavigation } from "@react-navigation/native"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
-// import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-// import { auth } from "../../services/firebase/config"
+// Import your Firebase AuthService
+import AuthService from "../../services/firebase/authService"
 
 const SignupScreen = () => {
   const navigation = useNavigation()
@@ -37,23 +37,31 @@ const SignupScreen = () => {
   const passwordInputRef = useRef(null)
   const repeatPasswordInputRef = useRef(null)
 
+  // Use Firebase AuthService for signup
   const onSubmit = async (data) => {
+    if (!acceptTerms) {
+      ToastAndroid.show("Please accept the Terms and Conditions.", ToastAndroid.SHORT)
+      return
+    }
     setLoading(true)
     try {
-      // const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
-      // await updateProfile(userCredential.user, { displayName: data.name })
-      // navigation.replace("Home")
-      ToastAndroid.show("Firebase disabled: Signup not performed.", ToastAndroid.SHORT)
+      const result = await AuthService.signUp(data.email, data.password, data.name)
+      if (result.success) {
+        ToastAndroid.show("Signup successful!", ToastAndroid.SHORT)
+        navigation.replace("Home")
+      } else {
+        // Show a more specific message for email already in use
+        if (
+          typeof result.error === "string" &&
+          result.error.toLowerCase().includes("already in use")
+        ) {
+          ToastAndroid.show("This email is already registered. Please use another.", ToastAndroid.LONG)
+        } else {
+          ToastAndroid.show(result.error, ToastAndroid.LONG)
+        }
+      }
     } catch (error) {
-      let errorMessage = "Signup failed. Please try again."
-      // if (error.code === "auth/email-already-in-use") {
-      //   errorMessage = "Email already in use."
-      // } else if (error.code === "auth/invalid-email") {
-      //   errorMessage = "Invalid email format."
-      // } else if (error.code === "auth/weak-password") {
-      //   errorMessage = "Password is too weak."
-      // }
-      ToastAndroid.show(errorMessage, ToastAndroid.LONG)
+      ToastAndroid.show("Signup failed. Please try again.", ToastAndroid.LONG)
     } finally {
       setLoading(false)
     }

@@ -17,8 +17,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import { useNavigation } from "@react-navigation/native";
 import Video from "react-native-video";
 import Colors from "../../styles/colors";
-// import { sendPasswordResetEmail } from "firebase/auth";
-// import { auth } from "../../services/firebase/config";
+import AuthService from "../../services/firebase/authService"; // Add this import
 
 const videoSource = require("../../assets/forgetpassword.mp4");
 
@@ -40,22 +39,17 @@ export default function EmailVerificationScreen() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // await sendPasswordResetEmail(auth, data.email);
-      // setEmailSent(true);
-      // ToastAndroid.show("Reset email sent!", ToastAndroid.SHORT);
-      // const verifiedEmail = data.email;
-      // navigation.navigate("ChangePassword", { email: verifiedEmail, isReset: true });
-      ToastAndroid.show("Firebase disabled: Reset email not sent.", ToastAndroid.SHORT);
+      const result = await AuthService.resetPassword(data.email); // Use AuthService
+      if (result.success) {
+        setEmailSent(true);
+        ToastAndroid.show("Reset email sent!", ToastAndroid.SHORT);
+        navigation.navigate("ChangePassword", { email: data.email, isReset: true });
+      } else {
+        let errorMessage = result.error || "Failed to send reset email. Please try again.";
+        ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      }
     } catch (error) {
-      let errorMessage = "Failed to send reset email. Please try again.";
-      // if (error.code === "auth/user-not-found") {
-      //   errorMessage = "No account found with this email.";
-      // } else if (error.code === "auth/invalid-email") {
-      //   errorMessage = "Invalid email format.";
-      // } else if (error.code === "auth/too-many-requests") {
-      //   errorMessage = "Too many requests. Try again later.";
-      // }
-      ToastAndroid.show(errorMessage, ToastAndroid.LONG);
+      ToastAndroid.show("Failed to send reset email. Please try again.", ToastAndroid.LONG);
     } finally {
       setLoading(false);
     }

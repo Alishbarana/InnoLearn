@@ -1,30 +1,30 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  onSnapshot,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from './config';
+import { getApp } from '@react-native-firebase/app';
+import {
+  getDatabase,
+  ref,
+  push,
+  set,
+  update,
+  remove,
+  get,
+  onValue,
+} from '@react-native-firebase/database';
+import database from '@react-native-firebase/database'; // <-- Import the namespaced API for ServerValue
+
+const app = getApp();
+const db = getDatabase(app);
 
 class DatabaseService {
-  // Add document to collection
+  // Add document to collection (push new child)
   async addDocument(collectionName, data) {
     try {
-      const docRef = await addDoc(collection(db, collectionName), {
+      const newRef = push(ref(db, collectionName));
+      await set(newRef, {
         ...data,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: database.ServerValue.TIMESTAMP,   // <-- Use namespaced API for TIMESTAMP
+        updatedAt: database.ServerValue.TIMESTAMP,
       });
-      return { success: true, id: docRef.id };
+      return { success: true, id: newRef.key };
     } catch (error) {
       console.error('Error adding document:', error);
       return { success: false, error: error.message };
@@ -34,14 +34,9 @@ class DatabaseService {
   // Get document by ID
   async getDocument(collectionName, docId) {
     try {
-      const docRef = doc(db, collectionName, docId);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        return { 
-          success: true, 
-          data: { id: docSnap.id, ...docSnap.data() } 
-        };
+      const snapshot = await get(ref(db, `${collectionName}/${docId}`));
+      if (snapshot.exists()) {
+        return { success: true, data: { id: docId, ...snapshot.val() } };
       } else {
         return { success: false, error: 'Document not found' };
       }
@@ -52,32 +47,11 @@ class DatabaseService {
   }
 
   // Get all documents from collection
-  async getCollection(collectionName, queryOptions = {}) {
+  async getCollection(collectionName) {
     try {
-      let q = collection(db, collectionName);
-      
-      // Apply query options
-      if (queryOptions.where) {
-        queryOptions.where.forEach(condition => {
-          q = query(q, where(condition.field, condition.operator, condition.value));
-        });
-      }
-      
-      if (queryOptions.orderBy) {
-        q = query(q, orderBy(queryOptions.orderBy.field, queryOptions.orderBy.direction || 'asc'));
-      }
-      
-      if (queryOptions.limit) {
-        q = query(q, limit(queryOptions.limit));
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const documents = [];
-      
-      querySnapshot.forEach((doc) => {
-        documents.push({ id: doc.id, ...doc.data() });
-      });
-      
+      const snapshot = await get(ref(db, collectionName));
+      const data = snapshot.val() || {};
+      const documents = Object.keys(data).map(id => ({ id, ...data[id] }));
       return { success: true, data: documents };
     } catch (error) {
       console.error('Error getting collection:', error);
@@ -88,10 +62,9 @@ class DatabaseService {
   // Update document
   async updateDocument(collectionName, docId, data) {
     try {
-      const docRef = doc(db, collectionName, docId);
-      await updateDoc(docRef, {
+      await update(ref(db, `${collectionName}/${docId}`), {
         ...data,
-        updatedAt: serverTimestamp()
+        updatedAt: database.ServerValue.TIMESTAMP,   // <-- Use namespaced API for TIMESTAMP
       });
       return { success: true };
     } catch (error) {
@@ -103,8 +76,7 @@ class DatabaseService {
   // Delete document
   async deleteDocument(collectionName, docId) {
     try {
-      const docRef = doc(db, collectionName, docId);
-      await deleteDoc(docRef);
+      await remove(ref(db, `${collectionName}/${docId}`));
       return { success: true };
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -114,46 +86,32 @@ class DatabaseService {
 
   // Real-time listener for document
   subscribeToDocument(collectionName, docId, callback) {
-    const docRef = doc(db, collectionName, docId);
-    return onSnapshot(docRef, (doc) => {
-      if (doc.exists()) {
-        callback({ success: true, data: { id: doc.id, ...doc.data() } });
+    const docRef = ref(db, `${collectionName}/${docId}`);
+    const listener = onValue(docRef, snapshot => {
+      if (snapshot.exists()) {
+        callback({ success: true, data: { id: docId, ...snapshot.val() } });
       } else {
         callback({ success: false, error: 'Document not found' });
       }
-    }, (error) => {
+    }, error => {
       callback({ success: false, error: error.message });
     });
+    // Return unsubscribe function
+    return () => listener();
   }
 
   // Real-time listener for collection
-  subscribeToCollection(collectionName, queryOptions = {}, callback) {
-    let q = collection(db, collectionName);
-    
-    // Apply query options
-    if (queryOptions.where) {
-      queryOptions.where.forEach(condition => {
-        q = query(q, where(condition.field, condition.operator, condition.value));
-      });
-    }
-    
-    if (queryOptions.orderBy) {
-      q = query(q, orderBy(queryOptions.orderBy.field, queryOptions.orderBy.direction || 'asc'));
-    }
-    
-    if (queryOptions.limit) {
-      q = query(q, limit(queryOptions.limit));
-    }
-    
-    return onSnapshot(q, (querySnapshot) => {
-      const documents = [];
-      querySnapshot.forEach((doc) => {
-        documents.push({ id: doc.id, ...doc.data() });
-      });
+  subscribeToCollection(collectionName, callback) {
+    const colRef = ref(db, collectionName);
+    const listener = onValue(colRef, snapshot => {
+      const data = snapshot.val() || {};
+      const documents = Object.keys(data).map(id => ({ id, ...data[id] }));
       callback({ success: true, data: documents });
-    }, (error) => {
+    }, error => {
       callback({ success: false, error: error.message });
     });
+    // Return unsubscribe function
+    return () => listener();
   }
 
   // User-specific methods
@@ -166,10 +124,13 @@ class DatabaseService {
   }
 
   async getUserPosts(userId) {
-    return this.getCollection('posts', {
-      where: [{ field: 'userId', operator: '==', value: userId }],
-      orderBy: { field: 'createdAt', direction: 'desc' }
-    });
+    // Assuming posts are stored under /posts/{postId} with a userId field
+    const allPosts = await this.getCollection('posts');
+    if (allPosts.success) {
+      const userPosts = allPosts.data.filter(post => post.userId === userId);
+      return { success: true, data: userPosts };
+    }
+    return allPosts;
   }
 }
 
