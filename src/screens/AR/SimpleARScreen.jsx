@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react"
 import { View, StyleSheet, StatusBar, Text, ActivityIndicator, Alert, Linking } from "react-native"
+import { useUserProgress } from "../../hooks/useUserProgress"
 
 const SimpleARScreen = ({ route, navigation }) => {
   const { recognizedTerm } = route.params || {}
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [viewStartTime] = useState(Date.now())
+  
+  // Progress tracking hook
+  const { track3DModelView } = useUserProgress()
 
-  // Model mapping to match your HTML file's MODEL_CONFIGS
   const modelMapping = {
     array: "array",
     binary_tree: "binary_tree",
@@ -20,13 +24,29 @@ const SimpleARScreen = ({ route, navigation }) => {
     stack: "stack",
   }
 
-  // Map the recognized term to the correct model key
   const modelKey = modelMapping[recognizedTerm] || "array"
-
-  // Build the AR URL with proper parameters
   const arUrl = `https://alishbarana.github.io/Ar-viewer-web/?model=${encodeURIComponent(modelKey)}&term=${encodeURIComponent(recognizedTerm)}&timestamp=${Date.now()}`
 
   console.log("Opening AR with:", { recognizedTerm, modelKey, arUrl })
+
+  // Track 3D model view when component unmounts
+  useEffect(() => {
+    return () => {
+      // Calculate view duration when component unmounts
+      const viewDuration = Math.floor((Date.now() - viewStartTime) / 1000)
+      
+      // Track the 3D model view
+      if (recognizedTerm && viewDuration > 0) {
+        track3DModelView(
+          modelKey, 
+          recognizedTerm.replace('_', ' '), 
+          viewDuration
+        ).catch(error => {
+          console.log('Progress tracking error (non-critical):', error)
+        })
+      }
+    }
+  }, [recognizedTerm, modelKey, viewStartTime, track3DModelView])
 
   useEffect(() => {
     const openUrl = async () => {

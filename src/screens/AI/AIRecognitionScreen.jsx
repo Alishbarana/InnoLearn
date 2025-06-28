@@ -18,6 +18,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-nat
 import Ionicons from "react-native-vector-icons/Ionicons"
 import Colors from "../../styles/colors"
 import { useMLKitTextRecognition } from "../../hooks/useMLKitTextRecognition"
+import { useUserProgress } from "../../hooks/useUserProgress"
 import AIRecognitionUpdate from "../../components/common/AIRecognitionUpdate"
 
 const AIRecognitionScreen = ({ navigation }) => {
@@ -25,15 +26,17 @@ const AIRecognitionScreen = ({ navigation }) => {
   const [capturedImage, setCapturedImage] = useState(null)
   const [recognitionResult, setRecognitionResult] = useState(null)
   const cameraRef = useRef(null)
-  const fadeAnim = useRef(new Animated.Value(1)).current // For guide text fade animation
+  const fadeAnim = useRef(new Animated.Value(1)).current
+  
+  // Progress tracking
+  const { trackOCRSearch } = useUserProgress()
+  const [processingStartTime, setProcessingStartTime] = useState(null)
 
   const devices = useCameraDevices()
   console.log("Available camera devices:", devices)
 
-  // Find the first back camera device
   const device = Array.isArray(devices) ? devices.find((d) => d.position === "back") : undefined
 
-  // Use the ML Kit text recognition hook
   const { recognizeText, isProcessing, error: modelError, isReady, clearError } = useMLKitTextRecognition()
 
   useEffect(() => {
@@ -44,10 +47,8 @@ const AIRecognitionScreen = ({ navigation }) => {
     })()
   }, [])
 
-  // Fade animation for guide text
   useEffect(() => {
     if (hasPermission && device && !capturedImage) {
-      // Start fade animation after 3 seconds
       const timer = setTimeout(() => {
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -60,7 +61,6 @@ const AIRecognitionScreen = ({ navigation }) => {
     }
   }, [hasPermission, device, capturedImage, fadeAnim])
 
-  // Reset fade animation when camera resets
   useEffect(() => {
     if (!capturedImage) {
       fadeAnim.setValue(1)
@@ -70,16 +70,12 @@ const AIRecognitionScreen = ({ navigation }) => {
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        // Take a photo
         const photo = await cameraRef.current.takePhoto({
           flash: "off",
           quality: 90,
         })
-
         const imageUri = `file://${photo.path}`
         setCapturedImage(imageUri)
-
-        // Process the image with ML Kit
         await processImage(imageUri)
       } catch (error) {
         console.error("Error taking picture:", error)
@@ -91,14 +87,55 @@ const AIRecognitionScreen = ({ navigation }) => {
   const processImage = async (imageUri) => {
     try {
       console.log("Processing image with ML Kit...")
+      
+      // Track processing start time
+      const startTime = Date.now()
+      setProcessingStartTime(startTime)
 
       // Run text recognition
       const result = await recognizeText(imageUri)
+
+      // Calculate processing time
+      const processingTime = Date.now() - startTime
 
       // Set the recognition result
       setRecognitionResult(result)
 
       console.log("Image processed successfully:", result)
+
+      // Track OCR search in progress system
+      try {
+        const searchText = result.extractedText || ""
+        const results = []
+        
+        // Prepare results array based on recognition result
+        if (result.recognizedTerm) {
+          results.push(result.recognizedTerm)
+        }
+        
+        if (result.allMatches && result.allMatches.length > 0) {
+          result.allMatches.forEach(match => {
+            if (match.specificTerm && !results.includes(match.specificTerm)) {
+              results.push(match.specificTerm)
+            }
+          })
+        }
+        
+        if (result.suggestions && result.suggestions.length > 0) {
+          result.suggestions.forEach(suggestion => {
+            if (suggestion.term && !results.includes(suggestion.term)) {
+              results.push(suggestion.term)
+            }
+          })
+        }
+
+        // Track the OCR search (non-blocking)
+        trackOCRSearch(searchText, results, processingTime).catch(error => {
+          console.log('Progress tracking error (non-critical):', error)
+        })
+      } catch (trackingError) {
+        console.log('OCR tracking failed (non-critical):', trackingError)
+      }
 
       // Show alert if no term was recognized
       if (!result.recognizedTerm) {
@@ -122,6 +159,7 @@ const AIRecognitionScreen = ({ navigation }) => {
   const resetCamera = () => {
     setCapturedImage(null)
     setRecognitionResult(null)
+    setProcessingStartTime(null)
     clearError()
   }
 
@@ -198,7 +236,6 @@ const AIRecognitionScreen = ({ navigation }) => {
               </View>
             </View>
 
-            {/* Animated Guide Box */}
             <Animated.View style={[styles.guideBox, { opacity: fadeAnim }]}>
               <Text style={styles.guideText}>Position the IT term clearly in the frame</Text>
               <Text style={styles.guideSubText}>Works with handwritten and printed text</Text>
@@ -280,7 +317,6 @@ const AIRecognitionScreen = ({ navigation }) => {
                         <Text style={styles.extractedText}>"{recognitionResult.extractedText}"</Text>
                       </View>
                     )}
-
                     {recognitionResult.suggestions && recognitionResult.suggestions.length > 0 && (
                       <View style={styles.suggestionsContainer}>
                         <Text style={styles.suggestionsLabel}>Did you mean:</Text>
@@ -289,7 +325,6 @@ const AIRecognitionScreen = ({ navigation }) => {
                             key={index}
                             style={styles.suggestionItem}
                             onPress={() => {
-                              // Handle suggestion selection
                               setRecognitionResult({
                                 ...recognitionResult,
                                 recognizedTerm: suggestion.mainCategory,
@@ -304,7 +339,6 @@ const AIRecognitionScreen = ({ navigation }) => {
                         ))}
                       </View>
                     )}
-
                     <TouchableOpacity style={styles.retryButton} onPress={resetCamera}>
                       <Text style={styles.retryButtonText}>Try Again</Text>
                     </TouchableOpacity>
@@ -326,6 +360,7 @@ const AIRecognitionScreen = ({ navigation }) => {
   )
 }
 
+// Keep all your existing styles exactly the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -426,7 +461,7 @@ const styles = StyleSheet.create({
   },
   recognitionContainer: {
     padding: wp(4),
-    paddingBottom: hp(10), // Extra padding for scroll
+    paddingBottom: hp(10),
   },
   resultHeader: {
     marginBottom: hp(2),

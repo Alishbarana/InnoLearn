@@ -1,396 +1,565 @@
-import { useState } from "react"
-import { ScrollView, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions } from "react-native"
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+  Share
+} from 'react-native';
+import { useUserProgress } from '../../hooks/useUserProgress';
+import Colors from '../../styles/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons"
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5"
-import Colors from "../../styles/colors"
-import { useUserProgress } from "../../hooks/useUserProgress"
-import Animated, { FadeInUp, FadeInDown } from "react-native-reanimated"
 
-const { width } = Dimensions.get("window")
+const ProgressScreen = () => {
+  const {
+    progressData,
+    termsProgress,
+    ocrHistory,
+    modelViews,
+    modelStats,
+    loading,
+    error,
+    getProgressStats,
+    exportProgress,
+    refreshProgress
+  } = useUserProgress();
 
-export default function Progress() {
-  const [activeTab, setActiveTab] = useState("overview")
-  const { progress, loading, error } = useUserProgress()
+  const [activeTab, setActiveTab] = useState('overview');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const stats = getProgressStats();
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshProgress();
+    setRefreshing(false);
+  };
+
+  const handleExportProgress = async () => {
+    try {
+      const exportData = await exportProgress();
+      if (exportData) {
+        const shareOptions = {
+          title: 'My Learning Progress',
+          message: `Learning Progress Report\nExported on: ${new Date(exportData.exportedAt).toLocaleDateString()}\n\nTotal Time Spent: ${formatTime(stats?.totalTimeSpent || 0)}\nTerms Visited: ${stats?.totalTermsVisited || 0}\nOCR Searches: ${stats?.totalOCRSearches || 0}\nModel Views: ${stats?.totalModelViews || 0}`,
+        };
+        await Share.share(shareOptions);
+      }
+    } catch (err) {
+      Alert.alert('Export Error', 'Failed to export progress data');
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const renderOverview = () => {
+    if (!stats) return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>No progress data available yet.</Text>
+        <Text style={styles.emptySubText}>Start learning to see your progress!</Text>
+      </View>
+    );
+
+    return (
+      <ScrollView style={styles.tabContent}>
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{formatTime(stats.totalTimeSpent)}</Text>
+            <Text style={styles.statLabel}>Total Time Spent</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.totalTermsVisited}</Text>
+            <Text style={styles.statLabel}>Terms Visited</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.totalOCRSearches}</Text>
+            <Text style={styles.statLabel}>OCR Searches</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.totalModelViews}</Text>
+            <Text style={styles.statLabel}>Model Views</Text>
+          </View>
+        </View>
+
+        {stats.mostViewedTerm && (
+          <View style={styles.highlightCard}>
+            <Text style={styles.highlightTitle}>Most Studied Term</Text>
+            <Text style={styles.highlightContent}>{stats.mostViewedTerm.termName}</Text>
+            <Text style={styles.highlightSubtext}>
+              {formatTime(stats.mostViewedTerm.totalTimeSpent)} • {stats.mostViewedTerm.visitCount} visits
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  const renderTermsProgress = () => (
+    <ScrollView style={styles.tabContent}>
+      {termsProgress.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No terms visited yet.</Text>
+          <Text style={styles.emptySubText}>Start reading content to track your progress!</Text>
+        </View>
+      ) : (
+        termsProgress.map((term, index) => (
+          <View key={term.termId} style={styles.progressItem}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>{term.termName}</Text>
+              <Text style={styles.progressTime}>{formatTime(term.totalTimeSpent)}</Text>
+            </View>
+            <View style={styles.progressDetails}>
+              <Text style={styles.progressDetail}>Visits: {term.visitCount}</Text>
+              <Text style={styles.progressDetail}>
+                Last visited: {formatDate(term.lastVisited)}
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${Math.min((term.totalTimeSpent / (stats?.totalTimeSpent || 1)) * 100, 100)}%` }
+                ]} 
+              />
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+
+  const renderOCRHistory = () => (
+    <ScrollView style={styles.tabContent}>
+      {ocrHistory.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No OCR searches yet.</Text>
+          <Text style={styles.emptySubText}>Use the camera to search for terms!</Text>
+        </View>
+      ) : (
+        ocrHistory.map((search, index) => (
+          <View key={search.searchId} style={styles.historyItem}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>"{search.searchText}"</Text>
+              <Text style={styles.historyTime}>{formatDate(search.searchedAt)}</Text>
+            </View>
+            <Text style={styles.historyDetails}>
+              {search.resultsCount} results • {search.processingTime}ms
+            </Text>
+            {search.results && search.results.length > 0 && (
+              <View style={styles.resultsContainer}>
+                {search.results.slice(0, 3).map((result, idx) => (
+                  <Text key={idx} style={styles.resultItem}>• {result}</Text>
+                ))}
+                {search.results.length > 3 && (
+                  <Text style={styles.moreResults}>
+                    +{search.results.length - 3} more results
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+
+  const renderModelViews = () => (
+    <ScrollView style={styles.tabContent}>
+      {modelStats.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No 3D models viewed yet.</Text>
+          <Text style={styles.emptySubText}>Use AR features to view 3D models!</Text>
+        </View>
+      ) : (
+        modelStats.map((model, index) => (
+          <View key={model.modelId} style={styles.modelItem}>
+            <View style={styles.modelHeader}>
+              <Text style={styles.modelTitle}>{model.modelName}</Text>
+              <Text style={styles.modelTime}>{formatTime(model.totalViewTime)}</Text>
+            </View>
+            <View style={styles.modelDetails}>
+              <Text style={styles.modelDetail}>Views: {model.viewCount}</Text>
+              <Text style={styles.modelDetail}>
+                Last viewed: {formatDate(model.lastViewed)}
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { 
+                    width: `${Math.min((model.totalViewTime / Math.max(...modelStats.map(m => m.totalViewTime))) * 100, 100)}%`,
+                    backgroundColor: Colors.secondary
+                  }
+                ]} 
+              />
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading your progress...</Text>
+        <Text style={styles.loadingText}>Loading progress...</Text>
       </View>
-    )
+    );
   }
 
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <MaterialCommunityIcons name="alert-circle" size={wp("15%")} color={Colors.secondary} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton}>
-          <Text style={styles.retryText}>Retry</Text>
+        <Text style={styles.errorText}>Error: {error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={refreshProgress}>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-    )
+    );
   }
-
-  if (!progress) {
-    return (
-      <View style={styles.emptyContainer}>
-        <MaterialCommunityIcons name="book-open-page-variant" size={wp("15%")} color={Colors.ternary} />
-        <Text style={styles.emptyText}>No progress data available</Text>
-      </View>
-    )
-  }
-
-  // Format time for display (convert minutes to hours and minutes)
-  const formatStudyTime = (minutes) => {
-    if (minutes < 60) {
-      return `${minutes} min`
-    } else {
-      const hours = Math.floor(minutes / 60)
-      const remainingMinutes = minutes % 60
-      return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`
-    }
-  }
-
-  const renderHeader = () => (
-    <Animated.View entering={FadeInDown.delay(200)} style={styles.header}>
-      <Text style={styles.headerTitle}>Learning Progress</Text>
-      <Text style={styles.headerSubtitle}>{progress.streak} Day Streak! 🔥</Text>
-    </Animated.View>
-  )
-
-  const renderStats = () => (
-    <Animated.View entering={FadeInUp.delay(400)} style={styles.statsContainer}>
-      <View style={styles.statCard}>
-        <MaterialCommunityIcons name="book-open-variant" size={wp("8%")} color={Colors.primary} />
-        <Text style={styles.statNumber}>{progress.completedTopics}</Text>
-        <Text style={styles.statLabel}>Topics Completed</Text>
-      </View>
-      <View style={styles.statCard}>
-        <MaterialCommunityIcons name="clock-outline" size={wp("8%")} color={Colors.primary} />
-        <Text style={styles.statNumber}>{formatStudyTime(progress.totalStudyTime).split(" ")[0]}</Text>
-        <Text style={styles.statLabel}>
-          {formatStudyTime(progress.totalStudyTime).includes("hr") ? "Hours Studied" : "Minutes Studied"}
-        </Text>
-      </View>
-    </Animated.View>
-  )
-
-  const renderCategoryProgress = () => (
-    <Animated.View entering={FadeInUp.delay(600)} style={styles.section}>
-      <Text style={styles.sectionTitle}>Category Progress</Text>
-      {Object.entries(progress.categoryCompletion).map(([category, data]) => (
-        <View key={category} style={styles.categoryItem}>
-          <View style={styles.categoryHeader}>
-            <Text style={styles.categoryTitle}>{category}</Text>
-            <Text style={styles.categoryPercentage}>{data.percentage}%</Text>
-          </View>
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                { width: `${data.percentage}%` },
-                data.percentage === 100 ? styles.progressBarComplete : {},
-              ]}
-            />
-          </View>
-          <Text style={styles.categoryDetails}>
-            {data.completed} of {data.total} topics completed
-          </Text>
-        </View>
-      ))}
-    </Animated.View>
-  )
-
-  const renderActivities = () => (
-    <Animated.View entering={FadeInUp.delay(700)} style={styles.section}>
-      <Text style={styles.sectionTitle}>Recent Activities</Text>
-      {progress.recentActivities.length > 0 ? (
-        progress.recentActivities.map((activity, index) => (
-          <View key={activity.id} style={styles.activityItem}>
-            <View style={styles.activityIcon}>
-              <FontAwesome5 name={activity.icon} size={wp("6%")} color={Colors.primary} />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>{activity.topic}</Text>
-              <Text style={styles.activityDate}>{activity.date}</Text>
-            </View>
-            <View style={styles.activityMetrics}>
-              <Text style={styles.activityScore}>{activity.score}%</Text>
-              {activity.duration > 0 && <Text style={styles.activityDuration}>{activity.duration} min</Text>}
-            </View>
-          </View>
-        ))
-      ) : (
-        <View style={styles.emptyActivities}>
-          <Text style={styles.emptyActivitiesText}>No recent activities</Text>
-          <Text style={styles.emptyActivitiesSubtext}>Start exploring topics to track your progress</Text>
-        </View>
-      )}
-    </Animated.View>
-  )
-
-  const renderAchievements = () => (
-    <Animated.View entering={FadeInUp.delay(800)} style={styles.section}>
-      <Text style={styles.sectionTitle}>Achievements</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
-        {progress.achievements.map((achievement) => (
-          <View key={achievement.id} style={[styles.achievementCard, { opacity: achievement.achieved ? 1 : 0.6 }]}>
-            <MaterialCommunityIcons
-              name={achievement.icon}
-              size={wp("10%")}
-              color={achievement.achieved ? Colors.primary : Colors.ternary}
-            />
-            <Text style={styles.achievementTitle}>{achievement.title}</Text>
-            <Text style={styles.achievementDesc}>{achievement.description}</Text>
-          </View>
-        ))}
-      </ScrollView>
-    </Animated.View>
-  )
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {renderHeader()}
-      {renderStats()}
-      {renderCategoryProgress()}
-      {renderActivities()}
-      {renderAchievements()}
-    </ScrollView>
-  )
-}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Learning Progress</Text>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExportProgress}>
+          <Text style={styles.exportButtonText}>Export</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.tabContainer}>
+        {['overview', 'terms', 'ocr', 'models'].map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.content}>
+        <ScrollView
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {activeTab === 'overview' && renderOverview()}
+          {activeTab === 'terms' && renderTermsProgress()}
+          {activeTab === 'ocr' && renderOCRHistory()}
+          {activeTab === 'models' && renderModelViews()}
+        </ScrollView>
+      </View>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#fff',
   },
   header: {
-    padding: wp("5%"),
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: wp(5),
     backgroundColor: Colors.primary,
-    borderBottomLeftRadius: wp("5%"),
-    borderBottomRightRadius: wp("5%"),
   },
   headerTitle: {
-    fontSize: wp("8%"),
-    fontWeight: "bold",
-    color: Colors.background,
-    textAlign: "center",
+    fontSize: wp(6),
+    fontWeight: 'bold',
+    color: '#fff',
   },
-  headerSubtitle: {
-    fontSize: wp("4%"),
-    color: Colors.quinary,
-    textAlign: "center",
-    marginTop: hp("1%"),
+  exportButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1),
+    borderRadius: wp(2),
+  },
+  exportButtonText: {
+    color: Colors.primary,
+    fontWeight: '600',
+    fontSize: wp(3.5),
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    elevation: 2,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: hp(2),
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 3,
+    borderBottomColor: Colors.primary,
+  },
+  tabText: {
+    fontSize: wp(4),
+    color: '#666',
+  },
+  activeTabText: {
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  content: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
+    padding: wp(5),
   },
   statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: wp("5%"),
-    marginTop: -hp("5%"),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: hp(3),
   },
   statCard: {
-    backgroundColor: Colors.background,
-    borderRadius: wp("4%"),
-    padding: wp("5%"),
-    width: wp("42%"),
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: '#f8f9fa',
+    padding: wp(4),
+    borderRadius: wp(3),
+    width: '48%',
+    marginBottom: hp(2),
+    elevation: 2,
+    alignItems: 'center',
   },
   statNumber: {
-    fontSize: wp("8%"),
-    fontWeight: "bold",
+    fontSize: wp(6),
+    fontWeight: 'bold',
     color: Colors.primary,
-    marginVertical: hp("1%"),
+    marginBottom: hp(0.5),
   },
   statLabel: {
-    fontSize: wp("3.5%"),
-    color: Colors.secondary,
-    textAlign: "center",
+    fontSize: wp(3.5),
+    color: '#666',
+    textAlign: 'center',
   },
-  section: {
-    padding: wp("5%"),
+  highlightCard: {
+    backgroundColor: Colors.primary,
+    padding: wp(5),
+    borderRadius: wp(3),
+    marginBottom: hp(3),
   },
-  sectionTitle: {
-    fontSize: wp("5%"),
-    fontWeight: "bold",
+  highlightTitle: {
+    fontSize: wp(4),
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: hp(1),
+  },
+  highlightContent: {
+    fontSize: wp(5),
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: hp(0.5),
+  },
+  highlightSubtext: {
+    fontSize: wp(3.5),
+    color: '#fff',
+    opacity: 0.8,
+  },
+  progressItem: {
+    backgroundColor: '#f8f9fa',
+    padding: wp(4),
+    borderRadius: wp(3),
+    marginBottom: hp(2),
+    elevation: 2,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(1),
+  },
+  progressTitle: {
+    fontSize: wp(4),
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  progressTime: {
+    fontSize: wp(4),
+    fontWeight: 'bold',
     color: Colors.primary,
-    marginBottom: hp("2%"),
   },
-  categoryItem: {
-    backgroundColor: Colors.quinary,
-    padding: wp("4%"),
-    borderRadius: wp("3%"),
-    marginBottom: hp("1.5%"),
+  progressDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp(1.5),
   },
-  categoryHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: hp("1%"),
-  },
-  categoryTitle: {
-    fontSize: wp("4%"),
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  categoryPercentage: {
-    fontSize: wp("4%"),
-    fontWeight: "bold",
-    color: Colors.primary,
-  },
-  progressBarContainer: {
-    height: hp("1.5%"),
-    backgroundColor: "#E0E0E0",
-    borderRadius: wp("1%"),
-    marginBottom: hp("1%"),
+  progressDetail: {
+    fontSize: wp(3.5),
+    color: '#666',
   },
   progressBar: {
-    height: "100%",
-    backgroundColor: Colors.secondary,
-    borderRadius: wp("1%"),
+    height: hp(0.8),
+    backgroundColor: '#e0e0e0',
+    borderRadius: hp(0.4),
+    overflow: 'hidden',
   },
-  progressBarComplete: {
-    backgroundColor: "#4CAF50",
-  },
-  categoryDetails: {
-    fontSize: wp("3%"),
-    color: Colors.secondary,
-  },
-  activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.quinary,
-    padding: wp("4%"),
-    borderRadius: wp("3%"),
-    marginBottom: hp("1.5%"),
-  },
-  activityIcon: {
-    backgroundColor: Colors.quartery,
-    padding: wp("3%"),
-    borderRadius: wp("2%"),
-  },
-  activityInfo: {
-    flex: 1,
-    marginLeft: wp("3%"),
-  },
-  activityTitle: {
-    fontSize: wp("4%"),
-    fontWeight: "600",
-    color: Colors.primary,
-  },
-  activityDate: {
-    fontSize: wp("3%"),
-    color: Colors.secondary,
-    marginTop: hp("0.5%"),
-  },
-  activityMetrics: {
-    alignItems: "flex-end",
-  },
-  activityScore: {
-    fontSize: wp("4%"),
-    fontWeight: "bold",
-    color: Colors.primary,
-  },
-  activityDuration: {
-    fontSize: wp("3%"),
-    color: Colors.secondary,
-    marginTop: hp("0.5%"),
-  },
-  achievementsScroll: {
-    flexDirection: "row",
-  },
-  achievementCard: {
-    backgroundColor: Colors.quinary,
-    padding: wp("4%"),
-    borderRadius: wp("4%"),
-    width: wp("40%"),
-    marginRight: wp("4%"),
-    alignItems: "center",
-  },
-  achievementTitle: {
-    fontSize: wp("3.5%"),
-    fontWeight: "bold",
-    color: Colors.primary,
-    marginTop: hp("1%"),
-    textAlign: "center",
-  },
-  achievementDesc: {
-    fontSize: wp("3%"),
-    color: Colors.secondary,
-    textAlign: "center",
-    marginTop: hp("0.5%"),
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background,
-  },
-  loadingText: {
-    marginTop: hp("2%"),
-    fontSize: wp("4%"),
-    color: Colors.secondary,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background,
-    padding: wp("5%"),
-  },
-  errorText: {
-    marginTop: hp("2%"),
-    fontSize: wp("4%"),
-    color: Colors.secondary,
-    textAlign: "center",
-  },
-  retryButton: {
-    marginTop: hp("3%"),
+  progressFill: {
+    height: '100%',
     backgroundColor: Colors.primary,
-    paddingHorizontal: wp("8%"),
-    paddingVertical: hp("1.5%"),
-    borderRadius: wp("2%"),
+    borderRadius: hp(0.4),
   },
-  retryText: {
-    color: Colors.background,
-    fontSize: wp("4%"),
-    fontWeight: "bold",
+  historyItem: {
+    backgroundColor: '#f8f9fa',
+    padding: wp(4),
+    borderRadius: wp(3),
+    marginBottom: hp(2),
+    elevation: 2,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: hp(1),
+  },
+  historyTitle: {
+    fontSize: wp(4),
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    marginRight: wp(3),
+  },
+  historyTime: {
+    fontSize: wp(3),
+    color: '#666',
+  },
+  historyDetails: {
+    fontSize: wp(3.5),
+    color: '#666',
+    marginBottom: hp(1),
+  },
+  resultsContainer: {
+    marginTop: hp(1),
+  },
+  resultItem: {
+    fontSize: wp(3.5),
+    color: '#333',
+    marginBottom: hp(0.3),
+  },
+  moreResults: {
+    fontSize: wp(3.5),
+    color: Colors.primary,
+    fontStyle: 'italic',
+    marginTop: hp(0.5),
+  },
+  modelItem: {
+    backgroundColor: '#f8f9fa',
+    padding: wp(4),
+    borderRadius: wp(3),
+    marginBottom: hp(2),
+    elevation: 2,
+  },
+  modelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(1),
+  },
+  modelTitle: {
+    fontSize: wp(4),
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  modelTime: {
+    fontSize: wp(4),
+    fontWeight: 'bold',
+    color: Colors.secondary,
+  },
+  modelDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp(1.5),
+  },
+  modelDetail: {
+    fontSize: wp(3.5),
+    color: '#666',
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: hp(10),
   },
   emptyText: {
-    marginTop: hp("2%"),
-    fontSize: wp("4%"),
-    color: Colors.ternary,
+    fontSize: wp(4.5),
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: hp(1),
   },
-  emptyActivities: {
-    alignItems: "center",
-    padding: wp("10%"),
-    backgroundColor: Colors.quinary,
-    borderRadius: wp("3%"),
+  emptySubText: {
+    fontSize: wp(3.5),
+    color: '#999',
+    textAlign: 'center',
   },
-  emptyActivitiesText: {
-    fontSize: wp("4%"),
-    fontWeight: "bold",
-    color: Colors.secondary,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
-  emptyActivitiesSubtext: {
-    fontSize: wp("3.5%"),
-    color: Colors.ternary,
-    textAlign: "center",
-    marginTop: hp("1%"),
+  loadingText: {
+    fontSize: wp(4.5),
+    color: '#666',
   },
-})
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: wp(5),
+  },
+  errorText: {
+    fontSize: wp(4),
+    color: 'red',
+    textAlign: 'center',
+    marginBottom: hp(3),
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: wp(6),
+    paddingVertical: hp(1.5),
+    borderRadius: wp(2),
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: wp(4),
+    fontWeight: '600',
+  },
+});
 
-
+export default ProgressScreen;

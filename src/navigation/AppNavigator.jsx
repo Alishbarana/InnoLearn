@@ -12,7 +12,7 @@ import HomeScreen from "../screens/Main/HomeScreen"
 import ProgressScreen from "../screens/Main/ProgressScreen"
 import ContentDetailScreen from "../screens/Main/ContentDetailScreen"
 import AIRecognitionScreen from "../screens/AI/AIRecognitionScreen"
-import ARViewerScreen from "../screens/AR/ARViewerScreen"
+// import ARViewerScreen from "../screens/AR/ARViewerScreen"
 import SimpleARScreen from "../screens/AR/SimpleARScreen"
 
 const Stack = createStackNavigator()
@@ -50,7 +50,7 @@ export default function AppNavigator({ isLoggedIn }) {
             <Stack.Screen name="Home" component={HomeScreen} options={{ gestureEnabled: false }} />
             <Stack.Screen name="Progress" component={ProgressScreen} />
             <Stack.Screen name="ContentDetail" component={ContentDetailScreen} />
-            <Stack.Screen name="ARViewer" component={ARViewerScreen} />
+            {/* <Stack.Screen name="ARViewer" component={ARViewerScreen} /> */}
             <Stack.Screen name="SimpleAR" component={SimpleARScreen} />
             <Stack.Screen name="AIRecognition" component={AIRecognitionScreen} />
           </>
@@ -65,7 +65,7 @@ export default function AppNavigator({ isLoggedIn }) {
             />
             <Stack.Screen name="Progress" component={ProgressScreen} />
             <Stack.Screen name="ContentDetail" component={ContentDetailScreen} />
-            <Stack.Screen name="ARViewer" component={ARViewerScreen} />
+            {/* <Stack.Screen name="ARViewer" component={ARViewerScreen} /> */}
             <Stack.Screen name="SimpleAR" component={SimpleARScreen} />
             <Stack.Screen name="AIRecognition" component={AIRecognitionScreen} />
             {/* Auth screens are not available when logged in */}
