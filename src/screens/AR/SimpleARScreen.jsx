@@ -28,8 +28,8 @@ const SimpleARScreen = ({ route, navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current
   const scaleAnim = useRef(new Animated.Value(0.8)).current
 
-  // Progress tracking hook
-  const { trackModelView } = useUserProgress()
+  // Progress tracking hook - FIXED: Use correct function name
+  const { track3DModelView } = useUserProgress()
 
   const Colors = {
     primary: "#384959",
@@ -77,20 +77,20 @@ const SimpleARScreen = ({ route, navigation }) => {
     }, [navigation]),
   )
 
-  // Track model view when component unmounts
+  // Track model view when component unmounts - FIXED: Use correct function name
   useEffect(() => {
     return () => {
       // Calculate time spent when component unmounts
       const timeSpent = Math.floor((Date.now() - viewStartTime) / 1000)
 
-      // Track the model view
-      if (recognizedTerm && timeSpent > 0) {
-        trackModelView(recognizedTerm, getModelName(recognizedTerm), timeSpent).catch((error) => {
+      // Track the model view - FIXED: Use track3DModelView instead of trackModelView
+      if (recognizedTerm && timeSpent > 0 && track3DModelView) {
+        track3DModelView(recognizedTerm, getModelName(recognizedTerm), timeSpent).catch((error) => {
           console.log("Model view tracking error (non-critical):", error)
         })
       }
     }
-  }, [recognizedTerm, viewStartTime, trackModelView])
+  }, [recognizedTerm, viewStartTime, track3DModelView])
 
   useEffect(() => {
     // Animate content on mount
@@ -165,11 +165,27 @@ const SimpleARScreen = ({ route, navigation }) => {
     )
   }
 
+  // Enhanced tracking function for AR interactions
+  const trackARInteraction = async (interactionType) => {
+    if (recognizedTerm && track3DModelView) {
+      try {
+        // Track different types of interactions with the model
+        const interactionTime = 5 // Default interaction time in seconds
+        await track3DModelView(
+          `${recognizedTerm}_${interactionType}`,
+          `${getModelName(recognizedTerm)} - ${interactionType}`,
+          interactionTime,
+        )
+      } catch (error) {
+        console.log("AR interaction tracking error (non-critical):", error)
+      }
+    }
+  }
+
   if (!recognizedTerm) {
     return (
       <View style={styles.container}>
         <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-
         <LinearGradient
           colors={[Colors.primary, Colors.secondary]}
           style={styles.header}
@@ -200,7 +216,6 @@ const SimpleARScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-
       {/* Header */}
       <LinearGradient
         colors={[Colors.primary, Colors.secondary]}
@@ -244,7 +259,6 @@ const SimpleARScreen = ({ route, navigation }) => {
               <View style={styles.modelIconContainer}>
                 <MaterialCommunityIcons name="cube-scan" size={wp(20)} color={Colors.ternary} />
               </View>
-
               <Text style={styles.modelTitle}>{getModelName(recognizedTerm)}</Text>
               <Text style={styles.modelDescription}>{getModelDescription(recognizedTerm)}</Text>
 
@@ -288,19 +302,17 @@ const SimpleARScreen = ({ route, navigation }) => {
               <View style={styles.arControls}>
                 <Text style={styles.arStatusText}>AR Mode Active</Text>
                 <Text style={styles.arInstructionText}>Move your device to explore the 3D model</Text>
-
                 <View style={styles.arButtonsContainer}>
-                  <TouchableOpacity style={styles.arControlButton}>
+                  <TouchableOpacity style={styles.arControlButton} onPress={() => trackARInteraction("rotation")}>
                     <MaterialCommunityIcons name="rotate-3d-variant" size={wp(6)} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.arControlButton}>
+                  <TouchableOpacity style={styles.arControlButton} onPress={() => trackARInteraction("animation")}>
                     <MaterialCommunityIcons name="animation-play" size={wp(6)} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.arControlButton}>
+                  <TouchableOpacity style={styles.arControlButton} onPress={() => trackARInteraction("info")}>
                     <MaterialCommunityIcons name="information" size={wp(6)} color="#fff" />
                   </TouchableOpacity>
                 </View>
-
                 <TouchableOpacity style={styles.exitARButton} onPress={() => setIsARActive(false)}>
                   <Text style={styles.exitARText}>Exit AR</Text>
                 </TouchableOpacity>
@@ -338,6 +350,7 @@ const SimpleARScreen = ({ route, navigation }) => {
   )
 }
 
+// Styles remain the same...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
