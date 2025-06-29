@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState, useRef } from "react"
 
 import { View, StyleSheet, StatusBar, Text, ActivityIndicator, Alert, Linking } from "react-native"

@@ -8,12 +8,13 @@ import Colors from "../../styles/colors"
 const AIRecognitionUpdate = ({ recognizedTerm, confidence, capturedImage, resetCamera }) => {
   const navigation = useNavigation()
 
+  // FIXED: Updated mapping to match ContentDetailScreen exactly
   const displayTerms = {
-    array: "Array",
-    binary_tree: "Binary Tree",
-    client_server: "Client Server",
-    firewall: "Firewall",
-    linked_list: "Linked List",
+    array: "Arrays",
+    binary_tree: "Binary Trees",
+    client_server: "Client-Server Model",
+    firewall: "FireWall",
+    linked_list: "Linked Lists",
     merge_sort: "Merge Sort",
     osi_model: "OSI Model",
     queue: "Queue",
