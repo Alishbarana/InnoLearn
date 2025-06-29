@@ -44,17 +44,36 @@ const ContentDetailScreen = ({ route, navigation }) => {
     warning: "#FFC107",
   }
 
+  // Professional safe navigation
+  const safeGoBack = () => {
+    try {
+      if (navigation.canGoBack()) {
+        navigation.goBack()
+      } else {
+        // Navigate to Home within MainApp
+        navigation.navigate("Home")
+      }
+    } catch (navError) {
+      console.log("Navigation error:", navError)
+      // Last resort - try to navigate to Home
+      try {
+        navigation.navigate("Home")
+      } catch (fallbackError) {
+        console.log("Fallback navigation failed:", fallbackError)
+        // If all else fails, reset to main stack
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Home" }],
+        })
+      }
+    }
+  }
+
   // Handle back button professionally
   useFocusEffect(
     React.useCallback(() => {
       const onBackPress = () => {
-        // Professional back navigation
-        if (navigation.canGoBack()) {
-          navigation.goBack()
-        } else {
-          // Fallback to Home screen within MainApp
-          navigation.navigate("Home")
-        }
+        safeGoBack()
         return true
       }
 
@@ -70,7 +89,7 @@ const ContentDetailScreen = ({ route, navigation }) => {
       const timeSpent = Math.floor((Date.now() - viewStartTime) / 1000)
 
       // Track the term visit
-      if (title && timeSpent > 0) {
+      if (title && timeSpent > 0 && trackTermVisit) {
         trackTermVisit(title.toLowerCase().replace(/\s+/g, "_"), title, timeSpent).catch((error) => {
           console.log("Progress tracking error (non-critical):", error)
         })
@@ -94,7 +113,7 @@ const ContentDetailScreen = ({ route, navigation }) => {
     ]).start()
   }, [])
 
-  // Content data for different topics
+  // Content data for different topics (keeping your existing content data)
   const getContentData = () => {
     const contentMap = {
       // Data Structures
@@ -480,6 +499,7 @@ const ContentDetailScreen = ({ route, navigation }) => {
 
   const content = getContentData()
 
+  // UPDATED: Navigate to SimpleAR screen with the recognized term for browser-based AR
   const handleARView = () => {
     const termMapping = {
       Arrays: "array",
@@ -496,7 +516,12 @@ const ContentDetailScreen = ({ route, navigation }) => {
 
     const recognizedTerm = termMapping[title]
     if (recognizedTerm) {
-      navigation.navigate("SimpleAR", { recognizedTerm })
+      try {
+        navigation.navigate("SimpleAR", { recognizedTerm })
+      } catch (navError) {
+        console.log("Navigation error:", navError)
+        Alert.alert("Navigation Error", "Unable to open AR viewer. Please try again.")
+      }
     } else {
       Alert.alert("AR Not Available", "AR view is not available for this topic yet.")
     }
@@ -550,16 +575,7 @@ const ContentDetailScreen = ({ route, navigation }) => {
         end={{ x: 1, y: 1 }}
       >
         <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack()
-              } else {
-                navigation.navigate("Home")
-              }
-            }}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
             <Ionicons name="arrow-back" size={wp(6)} color="#fff" />
           </TouchableOpacity>
 
@@ -618,31 +634,8 @@ const ContentDetailScreen = ({ route, navigation }) => {
         {/* Functions (for Router) */}
         {content.functions && renderSection("Functions", content.functions, "cog")}
 
-        {/* AR Call-to-Action */}
-        <Animated.View
-          style={[
-            styles.arCallToAction,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={[Colors.ternary, Colors.secondary]}
-            style={styles.arGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <MaterialCommunityIcons name="cube-scan" size={wp(10)} color="#fff" />
-            <Text style={styles.arTitle}>View in AR</Text>
-            <Text style={styles.arSubtitle}>Experience {title} in 3D</Text>
-            <TouchableOpacity style={styles.arActionButton} onPress={handleARView}>
-              <Text style={styles.arActionText}>Launch AR</Text>
-              <Ionicons name="arrow-forward" size={wp(4)} color={Colors.primary} />
-            </TouchableOpacity>
-          </LinearGradient>
-        </Animated.View>
+        {/* Add some bottom padding for better scrolling */}
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
   )
@@ -779,45 +772,8 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#384959",
   },
-  arCallToAction: {
-    marginVertical: hp(3),
-    borderRadius: wp(4),
-    overflow: "hidden",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-  },
-  arGradient: {
-    padding: wp(6),
-    alignItems: "center",
-  },
-  arTitle: {
-    fontSize: wp(5.5),
-    fontWeight: "bold",
-    color: "#fff",
-    marginTop: hp(2),
-  },
-  arSubtitle: {
-    fontSize: wp(3.5),
-    color: "rgba(255, 255, 255, 0.9)",
-    marginTop: hp(0.5),
-    marginBottom: hp(3),
-  },
-  arActionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    paddingHorizontal: wp(6),
-    paddingVertical: hp(1.5),
-    borderRadius: wp(8),
-  },
-  arActionText: {
-    fontSize: wp(4),
-    fontWeight: "600",
-    color: "#384959",
-    marginRight: wp(2),
+  bottomPadding: {
+    height: hp(3),
   },
 })
 
