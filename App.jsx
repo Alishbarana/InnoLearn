@@ -1,28 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, Animated, Dimensions } from 'react-native';
-import AppNavigator from './src/navigation/AppNavigator';
-import SplashScreen from './src/screens/Onboarding/SplashScreen';
-import AuthService from './src/services/firebase/authService';
+"use client"
 
-const { height } = Dimensions.get("window");
+import { useState, useRef, useEffect } from "react"
+import { View, StyleSheet, Animated, Dimensions, StatusBar } from "react-native"
+import { getApp } from "@react-native-firebase/app"
+import auth from "@react-native-firebase/auth"
+import AppNavigator from "./src/navigation/AppNavigator"
+import SplashScreen from "./src/screens/Onboarding/SplashScreen"
+
+const { height } = Dimensions.get("window")
+
+// Get the default app instance
+const app = getApp()
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(null);
+  const [showSplash, setShowSplash] = useState(true)
+  const [splashAnimationComplete, setSplashAnimationComplete] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(null)
 
-  const appNamePosition = useRef(new Animated.Value(0)).current;
-  const splashImageScale = useRef(new Animated.Value(1)).current;
-  const splashOpacity = useRef(new Animated.Value(1)).current;
-  const splashTranslateY = useRef(new Animated.Value(0)).current;
+  const appNamePosition = useRef(new Animated.Value(0)).current
+  const splashImageScale = useRef(new Animated.Value(1)).current
+  const splashOpacity = useRef(new Animated.Value(1)).current
+  const splashTranslateY = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    // Listen for auth state changes
-    const unsubscribe = AuthService.onAuthStateChanged(user => {
-      setIsLoggedIn(!!user);
-    });
-    return unsubscribe;
-  }, []);
+    // Listen for auth state changes using the modular API
+    const unsubscribe = auth(app).onAuthStateChanged((user) => {
+      console.log("Auth state changed:", !!user) // Debug log
+      setIsLoggedIn(!!user)
+    })
+
+    return unsubscribe
+  }, [])
 
   const handleSplashComplete = () => {
     Animated.sequence([
@@ -45,26 +53,27 @@ export default function App() {
       ]),
     ]).start(() => {
       setTimeout(() => {
-        setShowSplash(false);
-        setSplashAnimationComplete(true);
-      }, 100);
-    });
-  };
+        setShowSplash(false)
+        setSplashAnimationComplete(true)
+      }, 100)
+    })
+  }
 
   useEffect(() => {
     const splashTimer = setTimeout(() => {
-      handleSplashComplete();
-    }, 2500);
+      handleSplashComplete()
+    }, 2500)
 
     return () => {
-      clearTimeout(splashTimer);
-    };
-  }, []);
+      clearTimeout(splashTimer)
+    }
+  }, [])
 
-  // Wait for auth state to be determined
+  // Show splash screen while determining auth state or during splash animation
   if (isLoggedIn === null || !splashAnimationComplete) {
     return (
       <View style={styles.container}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
         {showSplash && (
           <Animated.View
             style={[
@@ -79,11 +88,16 @@ export default function App() {
           </Animated.View>
         )}
       </View>
-    );
+    )
   }
 
-  // Pass initialRouteName to AppNavigator
-  return <AppNavigator isLoggedIn={isLoggedIn} />;
+  // Once auth state is determined and splash is complete, show the app
+  return (
+    <>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <AppNavigator isLoggedIn={isLoggedIn} />
+    </>
+  )
 }
 
 const styles = StyleSheet.create({
@@ -95,4 +109,4 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
   },
-});
+})

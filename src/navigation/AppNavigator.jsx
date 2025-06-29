@@ -1,77 +1,112 @@
-import React, { useEffect } from "react"
-import { BackHandler, Platform } from "react-native"
+"use client"
+
+import { useEffect } from "react"
+import { BackHandler } from "react-native"
 import { NavigationContainer } from "@react-navigation/native"
 import { createStackNavigator } from "@react-navigation/stack"
-import SplashScreen from "../screens/Onboarding/SplashScreen"
 import WelcomeScreen from "../screens/Onboarding/WelcomeScreen"
 import LoginScreen from "../screens/Auth/LoginScreen"
 import SignupScreen from "../screens/Auth/SignupScreen"
 import EmailVerificationScreen from "../screens/Auth/EmailVerificationScreen"
 import ChangePasswordScreen from "../screens/Auth/ChangePasswordScreen"
+
+// Main App Screens
 import HomeScreen from "../screens/Main/HomeScreen"
 import ProgressScreen from "../screens/Main/ProgressScreen"
 import ContentDetailScreen from "../screens/Main/ContentDetailScreen"
 import AIRecognitionScreen from "../screens/AI/AIRecognitionScreen"
-// import ARViewerScreen from "../screens/AR/ARViewerScreen"
 import SimpleARScreen from "../screens/AR/SimpleARScreen"
 
-const Stack = createStackNavigator()
+const AuthStack = createStackNavigator()
+const MainStack = createStackNavigator()
+const RootStack = createStackNavigator()
 
+// Auth Stack - Only authentication related screens
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator
+      initialRouteName="Welcome"
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true, // Allow swipe back in auth flow
+      }}
+    >
+      <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="Signup" component={SignupScreen} />
+      <AuthStack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+      <AuthStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+    </AuthStack.Navigator>
+  )
+}
+
+// Main Stack - Only main app screens
+function MainNavigator() {
+  return (
+    <MainStack.Navigator
+      initialRouteName="Home"
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true, // Allow swipe back in main app
+      }}
+    >
+      <MainStack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          gestureEnabled: false, // Disable swipe back on Home (professional behavior)
+        }}
+      />
+      <MainStack.Screen name="Progress" component={ProgressScreen} />
+      <MainStack.Screen name="ContentDetail" component={ContentDetailScreen} />
+      <MainStack.Screen name="AIRecognition" component={AIRecognitionScreen} />
+      <MainStack.Screen name="SimpleAR" component={SimpleARScreen} />
+    </MainStack.Navigator>
+  )
+}
+
+// Root Navigator - Switches between Auth and Main
 export default function AppNavigator({ isLoggedIn }) {
   useEffect(() => {
-    // Handle back button: exit app from Home
+    // Professional back button handling
     const backAction = () => {
-      // Only exit app if on Home screen
-      // (You may want to use navigation state here for more complex flows)
-      return false // Let HomeScreen handle it
+      // Let individual screens handle their own back button logic
+      return false
     }
 
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      backAction
-    )
+    const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction)
     return () => backHandler.remove()
   }, [])
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName={isLoggedIn ? "Home" : "Login"}
-        screenOptions={{ headerShown: false }}
+      <RootStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animationEnabled: true,
+          gestureEnabled: false, // Disable gesture on root level
+        }}
       >
-        {!isLoggedIn ? (
-          <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-            {/* Prevent going back to auth screens after login */}
-            <Stack.Screen name="Home" component={HomeScreen} options={{ gestureEnabled: false }} />
-            <Stack.Screen name="Progress" component={ProgressScreen} />
-            <Stack.Screen name="ContentDetail" component={ContentDetailScreen} />
-            {/* <Stack.Screen name="ARViewer" component={ARViewerScreen} /> */}
-            <Stack.Screen name="SimpleAR" component={SimpleARScreen} />
-            <Stack.Screen name="AIRecognition" component={AIRecognitionScreen} />
-          </>
+        {isLoggedIn ? (
+          // User is logged in - show main app
+          <RootStack.Screen
+            name="MainApp"
+            component={MainNavigator}
+            options={{
+              animationTypeForReplace: isLoggedIn ? "push" : "pop",
+            }}
+          />
         ) : (
-          <>
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{
-                gestureEnabled: false, // Disable swipe back
-              }}
-            />
-            <Stack.Screen name="Progress" component={ProgressScreen} />
-            <Stack.Screen name="ContentDetail" component={ContentDetailScreen} />
-            {/* <Stack.Screen name="ARViewer" component={ARViewerScreen} /> */}
-            <Stack.Screen name="SimpleAR" component={SimpleARScreen} />
-            <Stack.Screen name="AIRecognition" component={AIRecognitionScreen} />
-            {/* Auth screens are not available when logged in */}
-          </>
+          // User is not logged in - show auth flow
+          <RootStack.Screen
+            name="Auth"
+            component={AuthNavigator}
+            options={{
+              animationTypeForReplace: isLoggedIn ? "push" : "pop",
+            }}
+          />
         )}
-      </Stack.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   )
 }

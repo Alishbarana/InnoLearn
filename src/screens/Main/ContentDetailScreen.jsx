@@ -1,457 +1,824 @@
-import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, ScrollView, BackHandler } from "react-native"
-import { useRoute, useNavigation } from "@react-navigation/native"
+"use client"
+
+import React, { useState, useEffect, useRef } from "react"
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  BackHandler,
+  Alert,
+  Animated,
+  Dimensions,
+} from "react-native"
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
-import Colors from "../../styles/colors"
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons"
+import Ionicons from "react-native-vector-icons/Ionicons"
+import LinearGradient from "react-native-linear-gradient"
+import { useFocusEffect } from "@react-navigation/native"
+import { useUserProgress } from "../../hooks/useUserProgress"
 
-// Expanded Topic Content
-const topicContent = {
-  Arrays: {
-    description: "An array is a fundamental data structure that stores multiple elements of the same type in a contiguous memory location, allowing easy and quick access to elements.",
-    keyPoints: [
-      "Elements are stored in adjacent memory locations",
-      "Indexed from 0 to (length - 1)",
-      "Allows random access to elements",
-      "Fixed size in most programming languages",
-      "Can store primitive types and objects"
-    ],
-    timeComplexity: {
-      access: "O(1)",
-      search: "O(n)",
-      insertion: "O(n)",
-      deletion: "O(n)"
-    },
-    realWorldAnalogy: "Think of an array like a row of lockers in a school, where each locker has a unique number, and you can quickly access any locker directly by its number.",
-    useCases: [
-      "Storing lists of similar items",
-      "Implementing other data structures",
-      "Mathematical calculations",
-      "Buffering in computer memory"
-    ]
-  },
-  "Linked Lists": {
-    description: "A linked list is a linear data structure where elements are stored in nodes, with each node containing data and a reference to the next node in the sequence.",
-    keyPoints: [
-      "Dynamic size and memory allocation",
-      "Elements are not stored in contiguous memory",
-      "Easy insertion and deletion of elements",
-      "Requires traversal for accessing elements",
-      "Can be singly, doubly, or circularly linked"
-    ],
-    timeComplexity: {
-      access: "O(n)",
-      search: "O(n)",
-      insertion: "O(1)",
-      deletion: "O(1)"
-    },
-    realWorldAnalogy: "Imagine a treasure hunt where each clue points to the location of the next clue. You have to follow the chain to find the treasure.",
-    useCases: [
-      "Implementing stacks and queues",
-      "Music playlists with song connections",
-      "Undo functionality in software",
-      "Browser history navigation"
-    ]
-  },
-  Stack: {
-    description: "A stack is a linear data structure that follows the Last-In-First-Out (LIFO) principle, where the last element added is the first one to be removed.",
-    keyPoints: [
-      "Elements are added and removed from the same end (top)",
-      "Two primary operations: Push (add) and Pop (remove)",
-      "Can be implemented using arrays or linked lists",
-      "Limited access to elements"
-    ],
-    timeComplexity: {
-      push: "O(1)",
-      pop: "O(1)",
-      peek: "O(1)"
-    },
-    realWorldAnalogy: "Think of a stack of plates in a cafeteria. You can only add or remove plates from the top.",
-    useCases: [
-      "Function call management in programming",
-      "Undo mechanisms in text editors",
-      "Expression evaluation",
-      "Backtracking algorithms"
-    ]
-  },
-  Queue: {
-    description: "A queue is a linear data structure that follows the First-In-First-Out (FIFO) principle, where the first element added is the first one to be removed.",
-    keyPoints: [
-      "Elements are added at the rear and removed from the front",
-      "Two primary operations: Enqueue (add) and Dequeue (remove)",
-      "Can be implemented using arrays or linked lists",
-      "Maintains order of insertion"
-    ],
-    timeComplexity: {
-      enqueue: "O(1)",
-      dequeue: "O(1)",
-      peek: "O(1)"
-    },
-    realWorldAnalogy: "Similar to a line of people waiting at a ticket counter. The first person who arrives gets served first.",
-    useCases: [
-      "Task scheduling in operating systems",
-      "Breadth-first search algorithms",
-      "Print job management",
-      "Handling asynchronous data transfer"
-    ]
-  },
-  "Binary Trees": {
-    description: "A binary tree is a hierarchical data structure where each node has at most two children, referred to as the left child and the right child.",
-    keyPoints: [
-      "Root node at the top of the hierarchy",
-      "Each node can have 0, 1, or 2 children",
-      "Left subtree and right subtree concept",
-      "Used in many search and sorting algorithms"
-    ],
-    timeComplexity: {
-      search: "O(log n) - balanced tree",
-      insertion: "O(log n) - balanced tree",
-      deletion: "O(log n) - balanced tree"
-    },
-    realWorldAnalogy: "Like a family tree where each person can have up to two direct descendants.",
-    useCases: [
-      "Hierarchical data representation",
-      "Efficient searching",
-      "Expression parsing",
-      "Huffman coding"
-    ]
-  },
-  "Merge Sort": {
-    description: "Merge sort is an efficient, stable sorting algorithm that uses the divide-and-conquer strategy to sort elements.",
-    keyPoints: [
-      "Divides the array into two halves recursively",
-      "Sorts and merges the sub-arrays",
-      "Guaranteed O(n log n) time complexity",
-      "Works well for large datasets"
-    ],
-    timeComplexity: {
-      average: "O(n log n)",
-      worst: "O(n log n)",
-      best: "O(n log n)",
-      space: "O(n)"
-    },
-    realWorldAnalogy: "Like organizing a messy library by splitting books into smaller groups, sorting them, and then combining them back.",
-    useCases: [
-      "External sorting",
-      "Sorting linked lists",
-      "Inversion count problems",
-      "Database sorting"
-    ]
-  },
-  "OSI Model": {
-    description: "The Open Systems Interconnection (OSI) model is a conceptual framework that describes how data communication occurs between devices in a network.",
-    keyPoints: [
-      "7 layers representing different network functions",
-      "Provides a standardized approach to network communication",
-      "Each layer has specific protocols and responsibilities",
-      "Helps in understanding network communication process"
-    ],
-    layers: [
-      "Application Layer",
-      "Presentation Layer",
-      "Session Layer",
-      "Transport Layer",
-      "Network Layer",
-      "Data Link Layer",
-      "Physical Layer"
-    ],
-    realWorldAnalogy: "Like a postal system where each department has a specific role in delivering a package.",
-    useCases: [
-      "Network troubleshooting",
-      "Protocol design",
-      "Understanding network interactions",
-      "Developing network technologies"
-    ]
-  },
-  FireWall: {
-    description: "A firewall is a network security system that monitors and controls incoming and outgoing network traffic based on predetermined security rules.",
-    keyPoints: [
-      "Acts as a barrier between trusted and untrusted networks",
-      "Filters traffic based on IP addresses, ports, and protocols",
-      "Can be hardware or software-based",
-      "Provides protection against unauthorized access"
-    ],
-    types: [
-      "Packet Filtering Firewalls",
-      "Stateful Inspection Firewalls",
-      "Proxy Firewalls",
-      "Next-Generation Firewalls"
-    ],
-    realWorldAnalogy: "Like a security guard checking and filtering people entering a restricted area.",
-    useCases: [
-      "Network security",
-      "Preventing cyber attacks",
-      "Access control",
-      "Monitoring network traffic"
-    ]
-  },
-  Router: {
-    description: "A router is a networking device that forwards data packets between computer networks, determining the best path for data transmission.",
-    keyPoints: [
-      "Connects different networks together",
-      "Uses routing tables and protocols",
-      "Operates at the network layer of OSI model",
-      "Assigns IP addresses"
-    ],
-    functions: [
-      "Packet forwarding",
-      "Path selection",
-      "Network address translation",
-      "Security features"
-    ],
-    realWorldAnalogy: "Like a traffic controller directing vehicles on different roads to their destination.",
-    useCases: [
-      "Internet connectivity",
-      "Home and office networks",
-      "Inter-network communication",
-      "Load balancing"
-    ]
-  },
-  "Client-Server Model": {
-    description: "The client-server model is a distributed computing architecture where tasks are divided between providers of resources (servers) and requesters of resources (clients).",
-    keyPoints: [
-      "Clients request services or resources",
-      "Servers provide and manage resources",
-      "Communication through network protocols",
-      "Scalable and flexible architecture"
-    ],
-    components: [
-      "Client application",
-      "Server application",
-      "Network infrastructure"
-    ],
-    realWorldAnalogy: "Like a restaurant where customers (clients) place orders, and waiters and kitchen staff (servers) prepare and deliver the food.",
-    useCases: [
-      "Web applications",
-      "Email services",
-      "Database systems",
-      "Cloud computing"
-    ]
-  }
-}
+const { width } = Dimensions.get("window")
 
-export default function ContentDetailScreen() {
-  const route = useRoute()
-  const navigation = useNavigation()
-  const { title, category } = route.params || {}
-  const content = topicContent[title] || {
-    description: "Content coming soon...",
-    keyPoints: [],
-    timeComplexity: {},
+const ContentDetailScreen = ({ route, navigation }) => {
+  const { title, category } = route.params
+  const [viewStartTime] = useState(Date.now())
+  const fadeAnim = useRef(new Animated.Value(0)).current
+  const slideAnim = useRef(new Animated.Value(50)).current
+
+  // Progress tracking hook
+  const { trackTermVisit } = useUserProgress()
+
+  const Colors = {
+    primary: "#384959",
+    secondary: "#6A89A7",
+    ternary: "#88bdf2",
+    quartery: "#BDDDFC",
+    quinary: "#EFF8FB",
+    background: "#ffffff",
+    text: "#333333",
+    error: "#e74c3c",
+    success: "#4CAF50",
+    warning: "#FFC107",
   }
 
-  // Track time spent on the topic
-  const [startTime] = useState(new Date())
-  const [hasTrackedInitialView, setHasTrackedInitialView] = useState(false)
+  // Handle back button professionally
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // Professional back navigation
+        if (navigation.canGoBack()) {
+          navigation.goBack()
+        } else {
+          // Fallback to Home screen within MainApp
+          navigation.navigate("Home")
+        }
+        return true
+      }
 
-  // Function to calculate duration in minutes
-  const calculateDuration = () => {
-    const endTime = new Date()
-    const durationMs = endTime - startTime
-    // Convert to minutes and ensure at least 1 minute for very short views
-    return Math.max(1, Math.round(durationMs / (1000 * 60)))
-  }
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+      return () => subscription.remove()
+    }, [navigation]),
+  )
 
-  // Track when user views this topic
+  // Track term visit when component unmounts
   useEffect(() => {
-    // Handle back button press on Android
-    const handleBackPress = () => {
-      trackDurationAndNavigateBack()
-      return false // Let the default back action proceed
-    }
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", handleBackPress)
-
     return () => {
-      subscription.remove()
-      trackDurationAndNavigateBack()
-    }
-  }, [title, category])
+      // Calculate time spent when component unmounts
+      const timeSpent = Math.floor((Date.now() - viewStartTime) / 1000)
 
-  // Function to track duration and navigate back
-  const trackDurationAndNavigateBack = async () => {
-    // No-op: Tracking and auth removed as per requirements
+      // Track the term visit
+      if (title && timeSpent > 0) {
+        trackTermVisit(title.toLowerCase().replace(/\s+/g, "_"), title, timeSpent).catch((error) => {
+          console.log("Progress tracking error (non-critical):", error)
+        })
+      }
+    }
+  }, [title, viewStartTime, trackTermVisit])
+
+  useEffect(() => {
+    // Animate content on mount
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [])
+
+  // Content data for different topics
+  const getContentData = () => {
+    const contentMap = {
+      // Data Structures
+      Arrays: {
+        definition:
+          "An array is a collection of elements stored at contiguous memory locations. It is the simplest data structure where each data element can be accessed directly by only using its index number.",
+        keyPoints: [
+          "Elements are stored in contiguous memory locations",
+          "Fixed size (in most programming languages)",
+          "Random access to elements using index",
+          "Same data type for all elements",
+          "Zero-based indexing in most languages",
+        ],
+        advantages: [
+          "Fast access to elements (O(1) time complexity)",
+          "Memory efficient",
+          "Simple to understand and implement",
+          "Cache friendly due to locality of reference",
+        ],
+        disadvantages: [
+          "Fixed size (cannot be changed during runtime)",
+          "Insertion and deletion can be expensive",
+          "Memory waste if not fully utilized",
+          "No built-in bounds checking in some languages",
+        ],
+        applications: [
+          "Storing data in tabular form",
+          "Implementation of other data structures",
+          "Mathematical operations on matrices",
+          "Database indexing",
+          "Image processing",
+        ],
+        timeComplexity: {
+          access: "O(1)",
+          search: "O(n)",
+          insertion: "O(n)",
+          deletion: "O(n)",
+        },
+      },
+      "Linked Lists": {
+        definition:
+          "A linked list is a linear data structure where elements are stored in nodes, and each node contains data and a reference (or link) to the next node in the sequence.",
+        keyPoints: [
+          "Dynamic size - can grow or shrink during runtime",
+          "Elements (nodes) are not stored in contiguous memory",
+          "Each node contains data and a pointer to the next node",
+          "Sequential access to elements",
+          "No random access to elements",
+        ],
+        advantages: [
+          "Dynamic size allocation",
+          "Efficient insertion and deletion at beginning",
+          "Memory is allocated as needed",
+          "No memory waste",
+        ],
+        disadvantages: [
+          "No random access to elements",
+          "Extra memory overhead for storing pointers",
+          "Not cache friendly",
+          "Sequential access only",
+        ],
+        applications: [
+          "Implementation of stacks and queues",
+          "Music playlist management",
+          "Browser history",
+          "Undo functionality in applications",
+          "Memory management in operating systems",
+        ],
+        timeComplexity: {
+          access: "O(n)",
+          search: "O(n)",
+          insertion: "O(1) at beginning",
+          deletion: "O(1) at beginning",
+        },
+      },
+      Stack: {
+        definition:
+          "A stack is a linear data structure that follows the Last In First Out (LIFO) principle. Elements can only be added or removed from the top of the stack.",
+        keyPoints: [
+          "LIFO (Last In First Out) principle",
+          "Two main operations: push (add) and pop (remove)",
+          "Access only to the top element",
+          "Can be implemented using arrays or linked lists",
+          "No random access to middle elements",
+        ],
+        advantages: [
+          "Simple implementation",
+          "Memory efficient",
+          "Fast insertion and deletion (O(1))",
+          "Automatic memory management",
+        ],
+        disadvantages: [
+          "Limited access (only top element)",
+          "No random access",
+          "Size limitations in array implementation",
+          "Stack overflow possibility",
+        ],
+        applications: [
+          "Function call management",
+          "Expression evaluation and syntax parsing",
+          "Undo operations in applications",
+          "Browser back button functionality",
+          "Depth-First Search (DFS) algorithm",
+        ],
+        timeComplexity: {
+          push: "O(1)",
+          pop: "O(1)",
+          peek: "O(1)",
+          search: "O(n)",
+        },
+      },
+      Queue: {
+        definition:
+          "A queue is a linear data structure that follows the First In First Out (FIFO) principle. Elements are added at the rear and removed from the front.",
+        keyPoints: [
+          "FIFO (First In First Out) principle",
+          "Two main operations: enqueue (add) and dequeue (remove)",
+          "Elements added at rear, removed from front",
+          "Can be implemented using arrays or linked lists",
+          "Circular queue variant for efficient space utilization",
+        ],
+        advantages: [
+          "Fair scheduling (first come, first served)",
+          "Efficient for sequential processing",
+          "Simple implementation",
+          "Predictable behavior",
+        ],
+        disadvantages: [
+          "No random access to elements",
+          "Limited access (only front and rear)",
+          "Memory waste in array implementation",
+          "Size limitations in static implementation",
+        ],
+        applications: [
+          "CPU scheduling in operating systems",
+          "Print job management",
+          "Breadth-First Search (BFS) algorithm",
+          "Handling requests in web servers",
+          "Buffer for data streams",
+        ],
+        timeComplexity: {
+          enqueue: "O(1)",
+          dequeue: "O(1)",
+          front: "O(1)",
+          search: "O(n)",
+        },
+      },
+      "Binary Trees": {
+        definition:
+          "A binary tree is a hierarchical data structure where each node has at most two children, referred to as the left child and right child.",
+        keyPoints: [
+          "Hierarchical structure with parent-child relationships",
+          "Each node has at most two children",
+          "Root node at the top, leaf nodes at the bottom",
+          "Various traversal methods (inorder, preorder, postorder)",
+          "Binary Search Tree (BST) is a special type",
+        ],
+        advantages: [
+          "Efficient searching in BST (O(log n))",
+          "Dynamic size",
+          "Hierarchical representation",
+          "Efficient insertion and deletion in balanced trees",
+        ],
+        disadvantages: [
+          "Can become unbalanced",
+          "No constant time access to arbitrary elements",
+          "Complex implementation compared to linear structures",
+          "Memory overhead for storing pointers",
+        ],
+        applications: [
+          "File system organization",
+          "Expression parsing",
+          "Database indexing",
+          "Huffman coding for data compression",
+          "Decision trees in machine learning",
+        ],
+        timeComplexity: {
+          search: "O(log n) average, O(n) worst",
+          insertion: "O(log n) average, O(n) worst",
+          deletion: "O(log n) average, O(n) worst",
+          traversal: "O(n)",
+        },
+      },
+      "Merge Sort": {
+        definition:
+          "Merge Sort is a divide-and-conquer algorithm that divides the array into two halves, sorts them separately, and then merges them back together.",
+        keyPoints: [
+          "Divide-and-conquer approach",
+          "Stable sorting algorithm",
+          "Consistent O(n log n) time complexity",
+          "Requires additional space for merging",
+          "Recursive implementation",
+        ],
+        advantages: [
+          "Guaranteed O(n log n) time complexity",
+          "Stable sorting (maintains relative order)",
+          "Predictable performance",
+          "Works well for large datasets",
+          "Parallelizable",
+        ],
+        disadvantages: [
+          "Requires O(n) extra space",
+          "Slower for small datasets",
+          "Not in-place sorting",
+          "Recursive overhead",
+        ],
+        applications: [
+          "External sorting for large files",
+          "Sorting linked lists",
+          "Inversion count problems",
+          "Stable sorting requirements",
+          "Parallel processing environments",
+        ],
+        timeComplexity: {
+          best: "O(n log n)",
+          average: "O(n log n)",
+          worst: "O(n log n)",
+          space: "O(n)",
+        },
+      },
+      // Networking
+      "OSI Model": {
+        definition:
+          "The OSI (Open Systems Interconnection) Model is a conceptual framework that standardizes the functions of a telecommunication or computing system into seven abstraction layers.",
+        keyPoints: [
+          "Seven layers: Physical, Data Link, Network, Transport, Session, Presentation, Application",
+          "Each layer serves the layer above and is served by the layer below",
+          "Provides a standard for network communication",
+          "Helps in troubleshooting network issues",
+          "Vendor-independent framework",
+        ],
+        advantages: [
+          "Standardized approach to networking",
+          "Easier troubleshooting and maintenance",
+          "Modular design allows for flexibility",
+          "Vendor interoperability",
+          "Educational framework for understanding networks",
+        ],
+        disadvantages: [
+          "Theoretical model, not always practical",
+          "Can be overly complex for simple networks",
+          "Not all protocols fit neatly into layers",
+          "Performance overhead due to layering",
+        ],
+        applications: [
+          "Network design and architecture",
+          "Protocol development",
+          "Network troubleshooting",
+          "Education and training",
+          "Standardization efforts",
+        ],
+        layers: {
+          "Layer 7": "Application - User interface",
+          "Layer 6": "Presentation - Data formatting",
+          "Layer 5": "Session - Connection management",
+          "Layer 4": "Transport - End-to-end delivery",
+          "Layer 3": "Network - Routing",
+          "Layer 2": "Data Link - Frame delivery",
+          "Layer 1": "Physical - Bit transmission",
+        },
+      },
+      FireWall: {
+        definition:
+          "A firewall is a network security device that monitors and controls incoming and outgoing network traffic based on predetermined security rules.",
+        keyPoints: [
+          "Acts as a barrier between trusted and untrusted networks",
+          "Can be hardware-based, software-based, or both",
+          "Uses rules to allow or block traffic",
+          "Different types: packet filtering, stateful, application-level",
+          "Essential component of network security",
+        ],
+        advantages: [
+          "Prevents unauthorized access",
+          "Monitors network traffic",
+          "Customizable security rules",
+          "Logs security events",
+          "Can prevent malware spread",
+        ],
+        disadvantages: [
+          "Can slow down network performance",
+          "Requires proper configuration",
+          "May block legitimate traffic if misconfigured",
+          "Cannot protect against all types of attacks",
+          "Maintenance overhead",
+        ],
+        applications: [
+          "Corporate network security",
+          "Home network protection",
+          "Server protection",
+          "Cloud security",
+          "IoT device security",
+        ],
+        types: {
+          "Packet Filtering": "Examines packets and allows/blocks based on rules",
+          Stateful: "Tracks connection state and context",
+          "Application Gateway": "Operates at application layer",
+          "Next-Generation": "Combines multiple security functions",
+        },
+      },
+      Router: {
+        definition:
+          "A router is a networking device that forwards data packets between computer networks. It connects multiple networks and determines the best path for data transmission.",
+        keyPoints: [
+          "Operates at the Network Layer (Layer 3)",
+          "Uses routing tables to determine packet paths",
+          "Connects different networks",
+          "Performs Network Address Translation (NAT)",
+          "Can provide wireless connectivity",
+        ],
+        advantages: [
+          "Connects multiple networks",
+          "Intelligent path selection",
+          "Network segmentation",
+          "Built-in security features",
+          "Wireless connectivity options",
+        ],
+        disadvantages: [
+          "More expensive than switches",
+          "Complex configuration",
+          "Potential bottleneck",
+          "Requires regular updates",
+          "Power consumption",
+        ],
+        applications: [
+          "Home internet connectivity",
+          "Enterprise network infrastructure",
+          "Internet service provider networks",
+          "Data center networking",
+          "Wireless access points",
+        ],
+        functions: {
+          Routing: "Determining best path for packets",
+          Switching: "Forwarding packets to correct interface",
+          NAT: "Translating private to public IP addresses",
+          DHCP: "Assigning IP addresses to devices",
+          Firewall: "Basic security filtering",
+        },
+      },
+      "Client-Server Model": {
+        definition:
+          "The Client-Server Model is a distributed application structure that partitions tasks between providers of a resource (servers) and service requesters (clients).",
+        keyPoints: [
+          "Clients request services from servers",
+          "Servers provide services to multiple clients",
+          "Communication over a network",
+          "Centralized resource management",
+          "Scalable architecture",
+        ],
+        advantages: [
+          "Centralized data management",
+          "Resource sharing",
+          "Scalability",
+          "Security control",
+          "Easier maintenance",
+        ],
+        disadvantages: [
+          "Single point of failure",
+          "Network dependency",
+          "Server overload possibility",
+          "Higher infrastructure costs",
+          "Complexity in implementation",
+        ],
+        applications: ["Web applications", "Email systems", "Database management", "File sharing", "Online gaming"],
+        types: {
+          "Two-tier": "Client directly communicates with server",
+          "Three-tier": "Includes presentation, application, and data tiers",
+          "N-tier": "Multiple layers for complex applications",
+          "Peer-to-peer": "Hybrid model where clients can also be servers",
+        },
+      },
+    }
+
+    return (
+      contentMap[title] || {
+        definition: "Content not available for this topic.",
+        keyPoints: [],
+        advantages: [],
+        disadvantages: [],
+        applications: [],
+      }
+    )
   }
 
-  // Additional rendering for extra content
-  const renderAdditionalContent = () => {
-    // Check for additional properties and render them
+  const content = getContentData()
+
+  const handleARView = () => {
+    const termMapping = {
+      Arrays: "array",
+      "Linked Lists": "linked_list",
+      Stack: "stack",
+      Queue: "queue",
+      "Binary Trees": "binary_tree",
+      "Merge Sort": "merge_sort",
+      "OSI Model": "osi_model",
+      FireWall: "firewall",
+      Router: "router",
+      "Client-Server Model": "client_server",
+    }
+
+    const recognizedTerm = termMapping[title]
+    if (recognizedTerm) {
+      navigation.navigate("SimpleAR", { recognizedTerm })
+    } else {
+      Alert.alert("AR Not Available", "AR view is not available for this topic yet.")
+    }
+  }
+
+  const renderSection = (sectionTitle, items, icon) => {
+    if (!items || items.length === 0) return null
+
     return (
-      <>
-        {content.realWorldAnalogy && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Real-World Analogy</Text>
-            <Text style={styles.description}>{content.realWorldAnalogy}</Text>
-          </View>
-        )}
-
-        {content.useCases && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Use Cases</Text>
-            {content.useCases.map((useCase, index) => (
-              <View key={index} style={styles.bulletPoint}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.pointText}>{useCase}</Text>
+      <Animated.View
+        style={[
+          styles.section,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.sectionHeader}>
+          <MaterialCommunityIcons name={icon} size={wp(5)} color={Colors.primary} />
+          <Text style={styles.sectionTitle}>{sectionTitle}</Text>
+        </View>
+        {Array.isArray(items)
+          ? items.map((item, index) => (
+              <View key={index} style={styles.listItem}>
+                <View style={styles.bullet} />
+                <Text style={styles.listText}>{item}</Text>
+              </View>
+            ))
+          : Object.entries(items).map(([key, value], index) => (
+              <View key={index} style={styles.listItem}>
+                <View style={styles.bullet} />
+                <Text style={styles.listText}>
+                  <Text style={styles.boldText}>{key}:</Text> {value}
+                </Text>
               </View>
             ))}
-          </View>
-        )}
-
-        {/* Render additional properties like layers, types, or functions if they exist */}
-        {content.layers && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Layers</Text>
-            {content.layers.map((layer, index) => (
-              <View key={index} style={styles.bulletPoint}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.pointText}>{layer}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        {content.types && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Types</Text>
-            {content.types.map((type, index) => (
-              <View key={index} style={styles.bulletPoint}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.pointText}>{type}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        {content.functions && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Functions</Text>
-            {content.functions.map((func, index) => (
-              <View key={index} style={styles.bulletPoint}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.pointText}>{func}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-        {content.components && (
-          <View style={styles.additionalSection}>
-            <Text style={styles.sectionTitle}>Components</Text>
-            {content.components.map((comp, index) => (
-              <View key={index} style={styles.bulletPoint}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={styles.pointText}>{comp}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </>
+      </Animated.View>
     )
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.category}>{category}</Text>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.description}>{content.description}</Text>
+      {/* Header */}
+      <LinearGradient
+        colors={[Colors.primary, Colors.secondary]}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack()
+              } else {
+                navigation.navigate("Home")
+              }
+            }}
+          >
+            <Ionicons name="arrow-back" size={wp(6)} color="#fff" />
+          </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Key Points</Text>
-        {content.keyPoints.map((point, index) => (
-          <View key={index} style={styles.bulletPoint}>
-            <Text style={styles.bullet}>•</Text>
-            <Text style={styles.pointText}>{point}</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>{title}</Text>
+            <Text style={styles.headerSubtitle}>{category}</Text>
           </View>
-        ))}
 
-        {Object.keys(content.timeComplexity || {}).length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Time Complexity</Text>
-            {Object.entries(content.timeComplexity).map(([operation, complexity]) => (
-              <View key={operation} style={styles.complexityItem}>
-                <Text style={styles.operationText}>{operation}:</Text>
-                <Text style={styles.complexityText}>{complexity}</Text>
-              </View>
-            ))}
-          </>
-        )}
+          <TouchableOpacity style={styles.arButton} onPress={handleARView}>
+            <MaterialCommunityIcons name="cube-scan" size={wp(6)} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-        {/* Render additional content */}
-        {renderAdditionalContent()}
-      </View>
-    </ScrollView>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Definition Section */}
+        <Animated.View
+          style={[
+            styles.definitionCard,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <LinearGradient colors={[Colors.quinary, "#fff"]} style={styles.definitionGradient}>
+            <View style={styles.definitionHeader}>
+              <MaterialCommunityIcons name="book-open-variant" size={wp(6)} color={Colors.primary} />
+              <Text style={styles.definitionTitle}>Definition</Text>
+            </View>
+            <Text style={styles.definitionText}>{content.definition}</Text>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* Key Points */}
+        {renderSection("Key Points", content.keyPoints, "key-variant")}
+
+        {/* Advantages */}
+        {renderSection("Advantages", content.advantages, "thumb-up")}
+
+        {/* Disadvantages */}
+        {renderSection("Disadvantages", content.disadvantages, "thumb-down")}
+
+        {/* Applications */}
+        {renderSection("Applications", content.applications, "application")}
+
+        {/* Time Complexity (for data structures) */}
+        {content.timeComplexity && renderSection("Time Complexity", content.timeComplexity, "clock-fast")}
+
+        {/* Layers (for OSI Model) */}
+        {content.layers && renderSection("OSI Layers", content.layers, "layers")}
+
+        {/* Types (for various topics) */}
+        {content.types && renderSection("Types", content.types, "format-list-bulleted")}
+
+        {/* Functions (for Router) */}
+        {content.functions && renderSection("Functions", content.functions, "cog")}
+
+        {/* AR Call-to-Action */}
+        <Animated.View
+          style={[
+            styles.arCallToAction,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={[Colors.ternary, Colors.secondary]}
+            style={styles.arGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <MaterialCommunityIcons name="cube-scan" size={wp(10)} color="#fff" />
+            <Text style={styles.arTitle}>View in AR</Text>
+            <Text style={styles.arSubtitle}>Experience {title} in 3D</Text>
+            <TouchableOpacity style={styles.arActionButton} onPress={handleARView}>
+              <Text style={styles.arActionText}>Launch AR</Text>
+              <Ionicons name="arrow-forward" size={wp(4)} color={Colors.primary} />
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      </ScrollView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#f8f9fa",
   },
   header: {
-    padding: wp("5%"),
-    backgroundColor: Colors.primary,
+    paddingTop: StatusBar.currentHeight + hp(2),
+    paddingBottom: hp(3),
+    borderBottomLeftRadius: wp(8),
+    borderBottomRightRadius: wp(8),
   },
-  category: {
-    fontSize: wp("4%"),
-    color: "#CEECF5",
-    marginBottom: hp("1%"),
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: wp(5),
   },
-  title: {
-    fontSize: wp("7%"),
+  backButton: {
+    width: wp(10),
+    height: wp(10),
+    borderRadius: wp(5),
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: wp(5.5),
     fontWeight: "bold",
-    color: "white",
+    color: "#fff",
+    textAlign: "center",
   },
-  content: {
-    padding: wp("5%"),
+  headerSubtitle: {
+    fontSize: wp(3.5),
+    color: "rgba(255, 255, 255, 0.8)",
+    marginTop: hp(0.5),
+  },
+  arButton: {
+    width: wp(10),
+    height: wp(10),
+    borderRadius: wp(5),
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2),
+  },
+  definitionCard: {
+    marginBottom: hp(3),
+    borderRadius: wp(4),
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  definitionGradient: {
+    padding: wp(5),
+  },
+  definitionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hp(2),
+  },
+  definitionTitle: {
+    fontSize: wp(5),
+    fontWeight: "bold",
+    color: "#384959",
+    marginLeft: wp(2),
+  },
+  definitionText: {
+    fontSize: wp(4),
+    lineHeight: wp(6),
+    color: "#333",
+    textAlign: "justify",
+  },
+  section: {
+    backgroundColor: "#fff",
+    borderRadius: wp(4),
+    padding: wp(4),
+    marginBottom: hp(2),
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hp(2),
+    paddingBottom: hp(1),
+    borderBottomWidth: 1,
+    borderBottomColor: "#BDDDFC",
   },
   sectionTitle: {
-    fontSize: wp("5%"),
+    fontSize: wp(4.5),
     fontWeight: "bold",
-    color: Colors.secondary,
-    marginTop: hp("3%"),
-    marginBottom: hp("2%"),
+    color: "#384959",
+    marginLeft: wp(2),
   },
-  description: {
-    fontSize: wp("4%"),
-    color: "#333",
-    lineHeight: wp("6%"),
-  },
-  bulletPoint: {
+  listItem: {
     flexDirection: "row",
-    marginBottom: hp("1%"),
-    paddingRight: wp("5%"),
+    alignItems: "flex-start",
+    marginBottom: hp(1),
   },
   bullet: {
-    fontSize: wp("4%"),
-    marginRight: wp("2%"),
-    color: Colors.primary,
+    width: wp(1.5),
+    height: wp(1.5),
+    borderRadius: wp(0.75),
+    backgroundColor: "#88bdf2",
+    marginTop: hp(0.8),
+    marginRight: wp(3),
   },
-  pointText: {
-    fontSize: wp("4%"),
-    color: "#333",
+  listText: {
     flex: 1,
-  },
-  complexityItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: hp("1%"),
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  operationText: {
-    fontSize: wp("4%"),
+    fontSize: wp(3.8),
+    lineHeight: wp(5.5),
     color: "#333",
-    textTransform: "capitalize",
   },
-  complexityText: {
-    fontSize: wp("4%"),
-    color: Colors.primary,
+  boldText: {
     fontWeight: "bold",
+    color: "#384959",
   },
-  additionalSection: {
-    marginTop: hp("2%"),
+  arCallToAction: {
+    marginVertical: hp(3),
+    borderRadius: wp(4),
+    overflow: "hidden",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+  arGradient: {
+    padding: wp(6),
+    alignItems: "center",
+  },
+  arTitle: {
+    fontSize: wp(5.5),
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: hp(2),
+  },
+  arSubtitle: {
+    fontSize: wp(3.5),
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: hp(0.5),
+    marginBottom: hp(3),
+  },
+  arActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: wp(6),
+    paddingVertical: hp(1.5),
+    borderRadius: wp(8),
+  },
+  arActionText: {
+    fontSize: wp(4),
+    fontWeight: "600",
+    color: "#384959",
+    marginRight: wp(2),
   },
 })
 
-
+export default ContentDetailScreen

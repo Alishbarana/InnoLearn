@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+"use client"
+
+import React, { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -11,44 +13,47 @@ import {
   StatusBar,
   FlatList,
   BackHandler,
-  Platform
-} from "react-native";
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import Feather from "react-native-vector-icons/Feather";
-import Ionicons from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
-import LinearGradient from "react-native-linear-gradient";
-import * as Animatable from "react-native-animatable";
-import AuthService from "../../services/firebase/authService"; // Add this import
+  Alert,
+} from "react-native"
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from "react-native-responsive-screen"
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons"
+import Feather from "react-native-vector-icons/Feather"
+import Ionicons from "react-native-vector-icons/Ionicons"
+import { useNavigation, useFocusEffect } from "@react-navigation/native"
+import LinearGradient from "react-native-linear-gradient"
+import * as Animatable from "react-native-animatable"
+import AuthService from "../../services/firebase/authService"
+// Updated Firebase import - using modular SDK
+// Remove the old Firebase import
+// import auth from "@react-native-firebase/auth"
 
-const { width, height } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window")
 
 const EducationalTopics = () => {
-  const navigation = useNavigation();
-  const [activeCategory, setActiveCategory] = useState("featured");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filteredTerms, setFilteredTerms] = useState([]);
-  const [userName, setUserName] = useState("");
+  const navigation = useNavigation()
+  const [activeCategory, setActiveCategory] = useState("featured")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filteredTerms, setFilteredTerms] = useState([])
+  const [userName, setUserName] = useState("")
 
   // Animation values
-  const headerAnimation = useRef(new Animated.Value(0)).current;
-  const searchBarAnimation = useRef(new Animated.Value(0)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
-  
+  const headerAnimation = useRef(new Animated.Value(0)).current
+  const searchBarAnimation = useRef(new Animated.Value(0)).current
+  const buttonScale = useRef(new Animated.Value(1)).current
+
   // Your app colors
   const Colors = {
-    primary: '#384959',
-    secondary: '#6A89A7',
-    ternary: '#88bdf2',
-    quartery: '#BDDDFC',
+    primary: "#384959",
+    secondary: "#6A89A7",
+    ternary: "#88bdf2",
+    quartery: "#BDDDFC",
     quinary: "#EFF8FB",
-    background: '#ffffff',
-    text: '#333333',
-    error: '#e74c3c',
-    success: '#4CAF50',
-    warning: '#FFC107',
-  };
+    background: "#ffffff",
+    text: "#333333",
+    error: "#e74c3c",
+    success: "#4CAF50",
+    warning: "#FFC107",
+  }
 
   // All 10 terms from your original app
   const allTerms = [
@@ -59,13 +64,58 @@ const EducationalTopics = () => {
     { id: "4", title: "Queue", category: "dataStructures", icon: "format-list-numbered", color: Colors.success },
     { id: "5", title: "Binary Trees", category: "dataStructures", icon: "file-tree", color: Colors.warning },
     { id: "6", title: "Merge Sort", category: "dataStructures", icon: "sort", color: Colors.error },
-    
+
     // Networking
     { id: "7", title: "OSI Model", category: "networking", icon: "layers", color: Colors.primary },
     { id: "8", title: "FireWall", category: "networking", icon: "security", color: Colors.secondary },
     { id: "9", title: "Router", category: "networking", icon: "router-wireless", color: Colors.ternary },
     { id: "10", title: "Client-Server Model", category: "networking", icon: "server-network", color: Colors.success },
-  ];
+  ]
+
+  // Updated logout function with better navigation handling
+  // Update the logout function to use AuthService consistently
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // Use AuthService for consistent logout
+            const result = await AuthService.signOut()
+
+            if (result.success) {
+              console.log("User logged out successfully")
+            } else {
+              throw new Error(result.error)
+            }
+          } catch (error) {
+            console.error("Logout error:", error)
+            Alert.alert("Error", "Failed to logout. Please try again.")
+          }
+        },
+      },
+    ])
+  }
+
+  // Handle back button properly for Home screen
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        // For Home screen, exit the app
+        BackHandler.exitApp()
+        return true
+      }
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress)
+
+      return () => subscription.remove()
+    }, []),
+  )
 
   useEffect(() => {
     // Animate elements on mount
@@ -80,8 +130,8 @@ const EducationalTopics = () => {
         duration: 600,
         useNativeDriver: true,
       }),
-    ]).start();
-    
+    ]).start()
+
     // Pulse animation for the scan button
     Animated.loop(
       Animated.sequence([
@@ -95,48 +145,36 @@ const EducationalTopics = () => {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
-    ).start();
+      ]),
+    ).start()
 
     // Fetch user display name
-    const user = AuthService.getCurrentUser();
+    const user = AuthService.getCurrentUser()
     if (user && user.displayName) {
-      setUserName(user.displayName);
+      setUserName(user.displayName)
     } else if (user && user.email) {
       // fallback: use email before @ if no displayName
-      setUserName(user.email.split("@")[0]);
+      setUserName(user.email.split("@")[0])
     } else {
-      setUserName("User");
+      setUserName("User")
     }
-
-    const backAction = () => {
-      BackHandler.exitApp();
-      return true;
-    };
-    const backHandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      backAction
-    );
-    return () => backHandler.remove();
-  }, []);
+  }, [])
 
   // Filter terms based on search query
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredTerms([]);
+      setFilteredTerms([])
     } else {
-      const filtered = allTerms.filter(term =>
-        term.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredTerms(filtered);
+      const filtered = allTerms.filter((term) => term.title.toLowerCase().includes(searchQuery.toLowerCase()))
+      setFilteredTerms(filtered)
     }
-  }, [searchQuery]);
+  }, [searchQuery])
 
   const categories = [
     { id: "featured", name: "Featured", icon: "star" },
     { id: "dataStructures", name: "Data Structure", icon: "database" },
     { id: "networking", name: "Networking", icon: "lan" },
-  ];
+  ]
 
   // Featured content for featured tab only
   const getFeaturedContent = () => {
@@ -147,7 +185,7 @@ const EducationalTopics = () => {
         description: "Advanced OCR for text recognition from images",
         icon: "text-recognition",
         color: Colors.ternary,
-        type: "feature"
+        type: "feature",
       },
       {
         id: "ar",
@@ -155,7 +193,7 @@ const EducationalTopics = () => {
         description: "3D visualization of computer science concepts",
         icon: "cube-scan",
         color: Colors.secondary,
-        type: "feature"
+        type: "feature",
       },
       {
         id: "concepts",
@@ -163,56 +201,56 @@ const EducationalTopics = () => {
         description: "Hands-on practice with real examples",
         icon: "book-open-page-variant",
         color: Colors.primary,
-        type: "feature"
+        type: "feature",
       },
-    ];
-  };
+    ]
+  }
 
   // Get topics based on category for horizontal bars
   const getTopicsForBars = () => {
     if (activeCategory === "dataStructures") {
-      return allTerms.filter(term => term.category === "dataStructures");
+      return allTerms.filter((term) => term.category === "dataStructures")
     } else if (activeCategory === "networking") {
-      return allTerms.filter(term => term.category === "networking");
+      return allTerms.filter((term) => term.category === "networking")
     }
-    return [];
-  };
+    return []
+  }
 
   const handleCategoryPress = (categoryId) => {
-    setActiveCategory(categoryId);
-  };
+    setActiveCategory(categoryId)
+  }
 
   const handleTopicPress = (topic) => {
     if (topic.type === "feature") {
       // Handle feature navigation - only navigate to existing screens
       switch (topic.id) {
         case "ai":
-          navigation.navigate("AIRecognition");
-          break;
+          navigation.navigate("AIRecognition")
+          break
         case "ar":
           // Navigate to existing AR screen or create a placeholder
-          navigation.navigate("Progress"); // Using existing screen as placeholder
-          break;
+          navigation.navigate("Progress") // Using existing screen as placeholder
+          break
         case "concepts":
           // Navigate to existing screen
-          navigation.navigate("Progress"); // Using existing screen as placeholder
-          break;
+          navigation.navigate("Progress") // Using existing screen as placeholder
+          break
       }
     } else {
       // Navigate to topic detail
-      navigation.navigate("ContentDetail", { 
-        title: topic.title, 
-        category: topic.category === "dataStructures" ? "Data Structures" : "Computer Networking"
-      });
+      navigation.navigate("ContentDetail", {
+        title: topic.title,
+        category: topic.category === "dataStructures" ? "Data Structures" : "Computer Networking",
+      })
     }
-  };
+  }
 
   const handleSearchTermPress = (term) => {
-    navigation.navigate("ContentDetail", { 
-      title: term.title, 
-      category: term.category === "dataStructures" ? "Data Structures" : "Computer Networking"
-    });
-  };
+    navigation.navigate("ContentDetail", {
+      title: term.title,
+      category: term.category === "dataStructures" ? "Data Structures" : "Computer Networking",
+    })
+  }
 
   const handleScanPress = () => {
     // Animate button press
@@ -228,13 +266,13 @@ const EducationalTopics = () => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      navigation.navigate("AIRecognition");
-    });
-  };
+      navigation.navigate("AIRecognition")
+    })
+  }
 
   const renderSearchResults = () => {
-    if (searchQuery.trim() === "") return null;
-    
+    if (searchQuery.trim() === "") return null
+
     if (filteredTerms.length === 0) {
       return (
         <View style={styles.emptySearchContainer}>
@@ -242,18 +280,14 @@ const EducationalTopics = () => {
           <Text style={styles.emptySearchText}>No topics found</Text>
           <Text style={styles.emptySearchSubText}>Try searching with different keywords</Text>
         </View>
-      );
+      )
     }
 
     return (
       <View style={styles.searchResultsContainer}>
         <Text style={styles.searchResultsTitle}>Search Results ({filteredTerms.length})</Text>
         {filteredTerms.map((term) => (
-          <TouchableOpacity
-            key={term.id}
-            style={styles.searchResultItem}
-            onPress={() => handleSearchTermPress(term)}
-          >
+          <TouchableOpacity key={term.id} style={styles.searchResultItem} onPress={() => handleSearchTermPress(term)}>
             <View style={[styles.searchResultIcon, { backgroundColor: term.color }]}>
               <MaterialCommunityIcons name={term.icon} size={wp(5)} color="#fff" />
             </View>
@@ -267,8 +301,8 @@ const EducationalTopics = () => {
           </TouchableOpacity>
         ))}
       </View>
-    );
-  };
+    )
+  }
 
   // Render simple horizontal topic bar
   const renderHorizontalTopicBar = (item, index) => {
@@ -279,12 +313,7 @@ const EducationalTopics = () => {
         onPress={() => handleTopicPress(item)}
         activeOpacity={0.7}
       >
-        <Animatable.View
-          animation="fadeInUp"
-          delay={index * 100}
-          duration={500}
-          style={styles.horizontalBarContent}
-        >
+        <Animatable.View animation="fadeInUp" delay={index * 100} duration={500} style={styles.horizontalBarContent}>
           <View style={styles.horizontalBarLeft}>
             <View style={[styles.horizontalBarIcon, { backgroundColor: item.color }]}>
               <MaterialCommunityIcons name={item.icon} size={wp(6)} color="#fff" />
@@ -294,24 +323,28 @@ const EducationalTopics = () => {
           <Ionicons name="chevron-forward" size={wp(5)} color={Colors.secondary} />
         </Animatable.View>
       </TouchableOpacity>
-    );
-  };
+    )
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
+
       {/* Animated Header */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.header,
-          { 
+          {
             opacity: headerAnimation,
-            transform: [{ translateY: headerAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [-50, 0]
-            })}]
-          }
+            transform: [
+              {
+                translateY: headerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-50, 0],
+                }),
+              },
+            ],
+          },
         ]}
       >
         <LinearGradient
@@ -323,46 +356,42 @@ const EducationalTopics = () => {
           <View style={styles.headerContent}>
             <View style={styles.userInfo}>
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>
-                  {userName ? userName.charAt(0).toUpperCase() : "U"}
-                </Text>
+                <Text style={styles.avatarText}>{userName ? userName.charAt(0).toUpperCase() : "U"}</Text>
               </View>
               <View>
                 <Text style={styles.welcomeText}>Welcome</Text>
                 <Text style={styles.nameText}>{userName}</Text>
               </View>
             </View>
-            
+
             <View style={styles.headerActions}>
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={() => navigation.navigate("Progress")}
-              >
+              <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("Progress")}>
                 <Ionicons name="stats-chart" size={wp(5.5)} color="#fff" />
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={() => navigation.replace("Welcome")}
-              >
+
+              <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
                 <Feather name="log-out" size={wp(5)} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
         </LinearGradient>
       </Animated.View>
-      
+
       {/* Search Bar */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.searchContainer,
           {
             opacity: searchBarAnimation,
-            transform: [{ translateY: searchBarAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [20, 0]
-            })}]
-          }
+            transform: [
+              {
+                translateY: searchBarAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [20, 0],
+                }),
+              },
+            ],
+          },
         ]}
       >
         <View style={styles.searchInputContainer}>
@@ -381,18 +410,20 @@ const EducationalTopics = () => {
           )}
         </View>
       </Animated.View>
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Show search results if searching */}
-        {searchQuery.trim() !== "" ? renderSearchResults() : (
+        {searchQuery.trim() !== "" ? (
+          renderSearchResults()
+        ) : (
           <>
             {/* Categories */}
             <View style={styles.categoriesContainer}>
-              <ScrollView 
+              <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesScrollContent}
@@ -400,38 +431,30 @@ const EducationalTopics = () => {
                 {categories.map((category) => (
                   <TouchableOpacity
                     key={category.id}
-                    style={[
-                      styles.categoryButton,
-                      activeCategory === category.id && styles.activeCategoryButton
-                    ]}
+                    style={[styles.categoryButton, activeCategory === category.id && styles.activeCategoryButton]}
                     onPress={() => handleCategoryPress(category.id)}
                   >
-                    <MaterialCommunityIcons 
-                      name={category.icon} 
-                      size={wp(4)} 
+                    <MaterialCommunityIcons
+                      name={category.icon}
+                      size={wp(4)}
                       color={activeCategory === category.id ? "#fff" : Colors.primary}
                       style={{ marginRight: wp(2) }}
                     />
-                    <Text 
-                      style={[
-                        styles.categoryText,
-                        activeCategory === category.id && styles.activeCategoryText
-                      ]}
-                    >
+                    <Text style={[styles.categoryText, activeCategory === category.id && styles.activeCategoryText]}>
                       {category.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
-            
+
             {/* Dynamic Content Based on Category */}
             {activeCategory === "featured" ? (
               <>
                 {/* Featured Content - Carousel Style */}
                 <View style={styles.contentContainer}>
                   <Text style={styles.sectionTitle}>App Features</Text>
-                  
+
                   <FlatList
                     data={getFeaturedContent()}
                     keyExtractor={(item) => item.id}
@@ -441,10 +464,7 @@ const EducationalTopics = () => {
                     decelerationRate="fast"
                     contentContainerStyle={styles.carouselContent}
                     renderItem={({ item, index }) => (
-                      <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() => handleTopicPress(item)}
-                      >
+                      <TouchableOpacity activeOpacity={0.9} onPress={() => handleTopicPress(item)}>
                         <Animatable.View
                           animation="fadeInUp"
                           delay={index * 100}
@@ -458,18 +478,14 @@ const EducationalTopics = () => {
                             style={styles.carouselGradient}
                           >
                             <View style={styles.topicIconContainer}>
-                              <MaterialCommunityIcons 
-                                name={item.icon} 
-                                size={wp(12)} 
-                                color="rgba(255,255,255,0.4)" 
-                              />
+                              <MaterialCommunityIcons name={item.icon} size={wp(12)} color="rgba(255,255,255,0.4)" />
                             </View>
-                            
+
                             <View style={styles.topicContent}>
                               <Text style={styles.topicTitle}>{item.title}</Text>
                               <Text style={styles.topicDescription}>{item.description}</Text>
                             </View>
-                            
+
                             {/* Decorative Elements */}
                             <View style={[styles.decorElement, styles.decorCircle]} />
                             <View style={[styles.decorElement, styles.decorSquare]} />
@@ -505,7 +521,7 @@ const EducationalTopics = () => {
                 <Text style={styles.sectionTitle}>
                   {activeCategory === "dataStructures" ? "Data Structures" : "Networking"}
                 </Text>
-                
+
                 {/* Using map instead of FlatList to avoid nesting error */}
                 <View style={styles.horizontalBarsContent}>
                   {getTopicsForBars().map((item, index) => renderHorizontalTopicBar(item, index))}
@@ -515,21 +531,17 @@ const EducationalTopics = () => {
           </>
         )}
       </ScrollView>
-      
+
       {/* Floating Scan Button */}
-      <Animated.View 
+      <Animated.View
         style={[
           styles.scanButtonContainer,
           {
-            transform: [{ scale: buttonScale }]
-          }
+            transform: [{ scale: buttonScale }],
+          },
         ]}
       >
-        <TouchableOpacity
-          style={styles.scanButton}
-          onPress={handleScanPress}
-          activeOpacity={0.9}
-        >
+        <TouchableOpacity style={styles.scanButton} onPress={handleScanPress} activeOpacity={0.9}>
           <LinearGradient
             colors={[Colors.ternary, Colors.secondary]}
             start={{ x: 0, y: 0 }}
@@ -542,16 +554,17 @@ const EducationalTopics = () => {
         <Text style={styles.scanText}>Scan</Text>
       </Animated.View>
     </View>
-  );
-};
+  )
+}
 
+// Keep all your existing styles exactly the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "white",
   },
   header: {
-    width: '100%',
+    width: "100%",
     height: hp(25),
   },
   headerGradient: {
@@ -561,49 +574,49 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
-    paddingTop: StatusBar.currentHeight + hp(2),
+    paddingTop: StatusBar.currentHeight + hp(3),
     paddingHorizontal: wp(5),
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   avatarContainer: {
     width: wp(12),
     height: wp(12),
     borderRadius: wp(6),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: wp(3),
   },
   avatarText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: wp(6),
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   welcomeText: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
     fontSize: wp(3.5),
   },
   nameText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: wp(5),
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   headerActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   iconButton: {
     width: wp(10),
     height: wp(10),
     borderRadius: wp(5),
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: wp(3),
   },
   searchContainer: {
@@ -612,19 +625,19 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   searchInputContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: wp(5),
     height: hp(7),
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: wp(4),
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
     borderWidth: 1,
-    borderColor: '#BDDDFC',
+    borderColor: "#BDDDFC",
   },
   searchIcon: {
     marginRight: wp(2),
@@ -632,7 +645,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: wp(4),
-    color: '#333333',
+    color: "#333333",
   },
   scrollView: {
     flex: 1,
@@ -648,39 +661,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(5),
   },
   categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: wp(4),
     paddingVertical: hp(1.5),
     borderRadius: wp(8),
     marginRight: wp(3),
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     borderWidth: 1,
-    borderColor: '#BDDDFC',
+    borderColor: "#BDDDFC",
   },
   activeCategoryButton: {
-    backgroundColor: '#384959',
+    backgroundColor: "#384959",
   },
   categoryText: {
     fontSize: wp(3.5),
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: "600",
+    color: "#666",
   },
   activeCategoryText: {
-    color: '#fff',
+    color: "#fff",
   },
   contentContainer: {
     marginTop: hp(2),
   },
   sectionTitle: {
     fontSize: wp(5.5),
-    fontWeight: 'bold',
-    color: '#384959',
+    fontWeight: "bold",
+    color: "#384959",
     marginBottom: hp(2),
     paddingHorizontal: wp(5),
   },
@@ -693,36 +706,36 @@ const styles = StyleSheet.create({
     height: hp(20),
     marginRight: wp(5),
     borderRadius: wp(5),
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   carouselGradient: {
     flex: 1,
     padding: wp(4),
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   topicIconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     width: wp(20),
   },
   topicContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   topicTitle: {
     fontSize: wp(5),
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: "bold",
+    color: "#fff",
     marginBottom: hp(1),
   },
   topicDescription: {
     fontSize: wp(3.5),
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
     marginBottom: hp(2),
   },
   decorElement: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    position: "absolute",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   decorCircle: {
     width: wp(15),
@@ -734,32 +747,32 @@ const styles = StyleSheet.create({
   decorSquare: {
     width: wp(10),
     height: wp(10),
-    transform: [{ rotate: '45deg' }],
+    transform: [{ rotate: "45deg" }],
     bottom: -wp(5),
     right: wp(5),
   },
   statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingHorizontal: wp(5),
     marginTop: hp(4),
   },
   statCard: {
     borderRadius: wp(4),
     padding: wp(4),
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     minWidth: wp(25),
     borderWidth: 1,
-    borderColor: '#BDDDFC',
+    borderColor: "#BDDDFC",
   },
   statNumber: {
     fontSize: wp(6),
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: hp(1),
   },
   statLabel: {
@@ -775,41 +788,41 @@ const styles = StyleSheet.create({
     paddingBottom: hp(5),
   },
   horizontalTopicBar: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: wp(4),
     marginBottom: hp(2.5),
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     borderWidth: 2,
-    borderColor: '#BDDDFC',
-    width: '100%',
+    borderColor: "#BDDDFC",
+    width: "100%",
   },
   horizontalBarContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: wp(4),
   },
   horizontalBarLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   horizontalBarIcon: {
     width: wp(12),
     height: wp(12),
     borderRadius: wp(6),
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: wp(4),
   },
   horizontalBarTitle: {
     fontSize: wp(4.5),
-    fontWeight: 'bold',
-    color: '#384959',
+    fontWeight: "bold",
+    color: "#384959",
     flex: 1,
   },
   // Search Results Styles
@@ -819,31 +832,31 @@ const styles = StyleSheet.create({
   },
   searchResultsTitle: {
     fontSize: wp(4.5),
-    fontWeight: 'bold',
-    color: '#384959',
+    fontWeight: "bold",
+    color: "#384959",
     marginBottom: hp(2),
   },
   searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
     marginBottom: hp(2),
     padding: wp(4),
     borderRadius: wp(4),
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     borderWidth: 1,
-    borderColor: '#BDDDFC',
+    borderColor: "#BDDDFC",
   },
   searchResultIcon: {
     width: wp(10),
     height: wp(10),
     borderRadius: wp(5),
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: wp(3),
   },
   searchResultContent: {
@@ -851,61 +864,61 @@ const styles = StyleSheet.create({
   },
   searchResultTitle: {
     fontSize: wp(4),
-    fontWeight: 'bold',
-    color: '#384959',
+    fontWeight: "bold",
+    color: "#384959",
     marginBottom: hp(0.5),
   },
   searchResultCategory: {
     fontSize: wp(3),
-    color: '#88bdf2',
-    fontWeight: '500',
+    color: "#88bdf2",
+    fontWeight: "500",
   },
   emptySearchContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: hp(8),
     paddingHorizontal: wp(5),
   },
   emptySearchText: {
     fontSize: wp(4.5),
-    fontWeight: '600',
-    color: '#384959',
+    fontWeight: "600",
+    color: "#384959",
     marginTop: hp(2),
   },
   emptySearchSubText: {
     fontSize: wp(3.5),
-    color: '#6A89A7',
+    color: "#6A89A7",
     marginTop: hp(1),
-    textAlign: 'center',
+    textAlign: "center",
   },
   scanButtonContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: hp(3),
     right: wp(5),
-    alignItems: 'center',
+    alignItems: "center",
   },
   scanButton: {
     width: wp(15),
     height: wp(15),
     borderRadius: wp(7.5),
-    overflow: 'hidden',
+    overflow: "hidden",
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
   },
   scanGradient: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   scanText: {
     marginTop: hp(1),
-    color: '#384959',
-    fontWeight: '600',
+    color: "#384959",
+    fontWeight: "600",
   },
-});
+})
 
-export default EducationalTopics;
+export default EducationalTopics
